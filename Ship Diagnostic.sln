@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32510.428
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ship Diagnostic", "Ship Diagnostic\Ship Diagnostic.csproj", "{011F3776-415A-4E2E-B3B5-B5F874A551C2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{011F3776-415A-4E2E-B3B5-B5F874A551C2}.Debug|x64.ActiveCfg = Debug|x64
+		{011F3776-415A-4E2E-B3B5-B5F874A551C2}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {042E5DD2-E929-4F8E-BCDF-6A50A93F57CD}
+	EndGlobalSection
+EndGlobal
