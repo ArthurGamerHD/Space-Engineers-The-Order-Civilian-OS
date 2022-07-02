@@ -26,16 +26,22 @@ namespace IngameScript
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update1 | UpdateFrequency.Update10;
             Renew(); Reload(); Grid = Me.CubeGrid;
-            ViewPort = new RectangleF((Surface.TextureSize - Surface.SurfaceSize) / 2f, Surface.SurfaceSize);
+            ViewPort = new RectangleF((Monitors[0].Surface.TextureSize - Monitors[0].Surface.SurfaceSize) / 2f, new Vector2(Monitors[0].Surface.SurfaceSize.X * Monitors.Count(), Monitors[0].Surface.SurfaceSize.Y)); ;
+            for (int i = 0; i < Monitors.Count; ++i)
+            {
+                Monitors[i].Viewport = new RectangleF(((Monitors[i].Surface.TextureSize.X - Monitors[i].Surface.SurfaceSize.X) / 2) + (Monitors[i].Surface.SurfaceSize.X * i), (Monitors[i].Surface.TextureSize.Y - Monitors[i].Surface.SurfaceSize.Y) / 2, Monitors[i].Surface.SurfaceSize.X, Monitors[i].Surface.SurfaceSize.Y);
+                Monitors[i].Hitbox = new Rectangle((int)Monitors[i].Viewport.X, (int)Monitors[i].Viewport.Y, (int)Monitors[i].Viewport.Width, (int)Monitors[i].Viewport.Height);
+            }
             Cursor = ViewPort.Size / 2;
-            offset = (Surface.TextureSize - Surface.SurfaceSize) / 2f;
+            offset = (Monitors[0].Surface.TextureSize - Monitors[0].Surface.SurfaceSize) / 2f;
             taskbar = new Rectangle((int)ViewPort.Position.X, (int)ViewPort.Bottom - 32, (int)ViewPort.Size.X, 32);
             StartButton = new Rectangle(taskbar.Left, taskbar.Top, 32, 32);
             StartMenuButton = new List<Buttons> { new Buttons("Debug", new Event(_Debug, "New")), new Buttons("Ship Diagnostic", new Event(RunDiagnostic, "New")), new Buttons("Hello", new Event(_Debug, "null")), new Buttons("Custom", new Event(_Debug, "null")), new Buttons("HW_Info", new Event(_Debug, "null")), new Buttons("Sleep", new Event(_Debug, "null")) };
-
         }
         void Main(string argument, UpdateType updateSource)
         {
+            Echo("Something");
+            foreach (Monitor surface in Monitors) { Echo(((IMyTextPanel)surface.Surface).CustomName); }
             GetCursor((updateSource & UpdateType.Update10) != 0);
             string[] _Custom = Me.CustomData.Split(',');
             if (argument == "Click") Clicked = true;
@@ -54,15 +60,16 @@ namespace IngameScript
                 }
                 catch { }
             }
+            _Debug("Log");
             foreach (Event _Task in HighPriorityTasks) _Task.Payload(_Task.Parameter);
             if ((updateSource & UpdateType.Update10) != 0)
             {
-                frame = Surface.DrawFrame();
                 Background();
+                for (int i = 0; i < Monitors.Count; i++)
+                    Monitors[i].Frame = Monitors[i].Surface.DrawFrame();
                 for (int i = 0; i < Windows.Count; i++)
-                    Render(Windows[i]);
+                    Comit(Windows[i]);
                 foreach (Event _Task in Tasks) _Task.Payload(_Task.Parameter);
-                //RunDiagnostic("");
                 if (MenuEnabled) StartMenu();
                 TaskBar();
                 DrawMouse();
@@ -75,33 +82,39 @@ namespace IngameScript
         }
         void Reload()
         {
-            Surface = Me.GetSurface(0);
+            Monitors.Add(new Monitor(Me.GetSurface(0)));
             if (blocknumbers != blocks.Count())
             {
+                List<IMyTextPanel> Panels = new List<IMyTextPanel> { };
                 blocknumbers = blocks.Count();
                 foreach (IMyTerminalBlock block in blocks)
                 {
                     if (block is IMyCockpit & block.CustomName.Contains("Helm")) helm = (IMyCockpit)block;
                     if (block is IMyShipWelder & block.CustomName.Contains("Welder")) welder = (IMyShipWelder)block;
-                    if (block is IMyTextPanel & block.CustomName.Contains("LCD-Display")) { Surface = (IMyTextPanel)block; Surface.ContentType = ContentType.SCRIPT; };
+                    if (block is IMyTextPanel & block.CustomName.Contains("LCD Master")) { Monitors.RemoveAt(0); Panels.Add((IMyTextPanel)block); ((IMyTextPanel)block).ContentType = ContentType.SCRIPT; };
+                    if (block is IMyTextPanel & block.CustomName.Contains("LCD Slave")) { Panels.Add((IMyTextPanel)block); ((IMyTextPanel)block).ContentType = ContentType.SCRIPT; };
+                }
+                Panels.Sort((A, B) => A.CustomName.CompareTo(B.CustomName));
+                foreach (IMyTextPanel Panel in Panels) { 
+                    if (Panel.BlockDefinition.SubtypeId.Equals(Panels[0].BlockDefinition.SubtypeId) && Panel.BlockDefinition.Equals(Panels[0].BlockDefinition)) {
+                        Monitors.Add(new Monitor(Panel));
+                    }
                 }
             }
         }
         void Background()
         {
-            //string[] Custom = Me.CustomData.Split(',');
-            //Write(new Rectangle((int)ViewPort.Position.X, (int)ViewPort.Position.Y, (int)ViewPort.Size.X, (int)ViewPort.Size.Y), Custom[1], "Monospace", .1f);
             Color Water = new Vector4(.8f, .8f, .8f, .75f);
             string _Message = "Go to Setting to activate TcdOs\nTcdOS - Build Beta 1.9";
-            Vector2 _ContentSize = Surface.MeasureStringInPixels(new StringBuilder(_Message), "White", .6f);
-            Vector2 _ContentSize2 = Surface.MeasureStringInPixels(new StringBuilder("Activate TcdOS"), "White", .9f);
+            Vector2 _ContentSize = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_Message), "White", .6f);
+            Vector2 _ContentSize2 = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder("Activate TcdOS"), "White", .9f);
             Write(new Rectangle((int)ViewPort.Width - (int)_ContentSize.X - 5 + (int)ViewPort.X, (int)ViewPort.Y + (int)ViewPort.Height - (int)(_ContentSize2.Y + 32 + _ContentSize.Y), (int)_ContentSize.X, (int)_ContentSize2.Y), "Activate TcdOS", "White", .9f, Water);
             Write(new Rectangle((int)ViewPort.Width - (int)_ContentSize.X - 5 + (int)ViewPort.X, (int)ViewPort.Y + (int)ViewPort.Height - (int)_ContentSize.Y - 32, (int)_ContentSize.X, (int)_ContentSize.Y), _Message, "White", .6f, Water);
         }
         void TaskBar()
         {
             Fill(taskbar, Theme);
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXTURE,
                 Data = "Textures\\FactionLogo\\Others\\OtherIcon_18.dds",
@@ -119,13 +132,7 @@ namespace IngameScript
             {
                 StartMenuButton[i].Hitbox = new Rectangle(taskbar.Left, Menu.Top + (32 * i), Menu.Width, 30);
                 Fill(StartMenuButton[i].Hitbox, Color.DarkGray);
-                frame.Add(new MySprite()
-                {
-                    Type = SpriteType.TEXT,
-                    Data = " " + StartMenuButton[i].Name,
-                    RotationOrScale = .7f,
-                    Position = new Vector2(StartMenuButton[i].Hitbox.Left, StartMenuButton[i].Hitbox.Top)
-                });
+                Write(StartMenuButton[i].Hitbox, " " + StartMenuButton[i].Name, "White", .7f);
             }
         }
         void GetCursor(bool _update)
@@ -189,7 +196,7 @@ namespace IngameScript
 
         void DrawMouse()
         {
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXTURE,
                 Data = "Textures\\FactionLogo\\Builders\\BuilderIcon_6.dds",
@@ -199,7 +206,8 @@ namespace IngameScript
                 Color = (drag ? Color.Orange : clicked ? Color.Red : near ? Color.Yellow : Color.Green),
                 Alignment = TextAlignment.LEFT
             }); ;
-            frame.Dispose();
+            foreach (Monitor Surface in Monitors)
+                Surface.Frame.Dispose();
         }
         void NewWindow(Vector2 Position, string Title, Content _Content, int MinimalX = 128, int MinimalY = 128)
         {
@@ -210,12 +218,12 @@ namespace IngameScript
             {
                 Windows.Last().Content = _Content;
             }
-            Render(Windows.Last());
+            Comit(Windows.Last());
 
         }
         void WindowBuilder(Window _Window)
         {
-            Vector2 Size = Surface.MeasureStringInPixels(new StringBuilder(_Window.Title), "InfoMessageBoxCaption", 1f);
+            Vector2 Size = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_Window.Title), "InfoMessageBoxCaption", 1f);
             _Window.MyFrame = new Rectangle((int)_Window.Position.X, (int)_Window.Position.Y, (int)Size.X + 96, 32);
             WindowContentBuilder(_Window);
             WindowToolbarBuilder(_Window);
@@ -235,11 +243,11 @@ namespace IngameScript
                 if (_Window.Content.MyContent != null)
                 {
                     string _ContenString = _Window.Content.MyContent;
-                    Vector2 ContentSize = Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, 1.2f);
+                    Vector2 ContentSize = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, 1.2f);
                     if (ContentSize.X < ViewPort.Size.X) ContentSize.X = ViewPort.Size.X;
                     if (ContentSize.Y < ViewPort.Size.Y) ContentSize.Y = ViewPort.Size.Y;
                     float scale = Math.Min((ViewPort.Size.X - 40) / ContentSize.X, (ViewPort.Size.Y) / ContentSize.Y);
-                    ContentSize = Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, scale);
+                    ContentSize = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, scale);
                     _Window.MyFrame = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top, (int)Math.Max(Math.Max(_Window.MyFrame.Width, ContentSize.X), _Window.MinimumSize.X), _Window.MyFrame.Height + (int)Math.Max(ContentSize.Y, _Window.MinimumSize.Y));
                     _Window.Content.MyContentBox = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top + 32, _Window.MyFrame.Width, _Window.MyFrame.Height - 32);
                     _Window.Content.ContentCanvas = new RectangleF(_Window.Content.MyContentBox.X, _Window.Content.MyContentBox.Y, _Window.Content.MyContentBox.Width, _Window.Content.MyContentBox.Height);
@@ -249,7 +257,7 @@ namespace IngameScript
             catch (Exception Error) { NewWindow(Cursor, "WindowContentBuilder Error", new Content(Error.ToString())); };
         }
         void WindowFooterBuilder(Window _Window) { }
-        void Render(Window _Window)
+        void Comit(Window _Window)
         {
             if (_Window.MyToolbar == null) { WindowBuilder(_Window); };
             Fill(new Rectangle(_Window.MyFrame.X - 1, _Window.MyFrame.Y - 1, _Window.MyFrame.Width + 2, _Window.MyFrame.Height + 2), Color.White);
@@ -261,14 +269,14 @@ namespace IngameScript
             if (_Window.Content != null)
             {
                 Fill(_Window.Content.MyContentBox, Color.DarkGray);
-                if (_Window.Content.Sprites != null) foreach (MySprite Sprite in _Window.Content.Sprites) frame.Add(Sprite);
+                if (_Window.Content.Sprites != null) foreach (MySprite Sprite in _Window.Content.Sprites) Render(Sprite);
                 Write(_Window.Content.MyContentBox, _Window.Content.MyContent, _Window.Content.MyFont, _Window.Content.MyScale);
             }
         }
 
         void Fill(Rectangle _Frame, Color _Color)
         {
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXTURE,
                 Data = "SquareSimple",
@@ -279,8 +287,7 @@ namespace IngameScript
         }
         void Write(Rectangle _Frame, string _Data, string Font, float _Scale, Color? Color = null)
         {
-
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXT,
                 Data = _Data,
@@ -292,7 +299,7 @@ namespace IngameScript
         }
         void Circle(Rectangle _Frame, Color color)
         {
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXTURE,
                 Data = "Circle",
@@ -304,14 +311,14 @@ namespace IngameScript
         }
         void NewButton(Rectangle A, string text, float scale, MySpriteDrawFrame frame)
         {
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXTURE,
                 Data = "SquareSimple",
                 Position = new Vector2(A.Left - 2, A.Top - 1 + ((A.Bottom - A.Top) / 2)),
                 Size = new Vector2(A.Right - A.Left + 4, A.Bottom - A.Top + 4),
             }); //Button box shadow
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXTURE,
                 Data = "SquareSimple",
@@ -319,7 +326,7 @@ namespace IngameScript
                 Size = new Vector2(A.Right - A.Left, A.Bottom - A.Top),
                 Color = Color.Gray,
             }); //Button box
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXT,
                 Data = text,
@@ -330,7 +337,7 @@ namespace IngameScript
         }
         void ToolbarButton(Rectangle A, float Y, Color color)
         {
-            frame.Add(new MySprite()
+            Render(new MySprite()
             {
                 Type = SpriteType.TEXTURE,
                 Data = "Circle",
@@ -408,50 +415,91 @@ namespace IngameScript
                 Payload = _Payload;
             }
         }
+        public class Monitor
+        {
+            public IMyTextSurface Surface { get; set; }
+            public MySpriteDrawFrame Frame { get; set; }
+            public Rectangle Hitbox { get; set; }
+            public RectangleF Viewport { get; set; }
+            public Monitor(IMyTextSurface _Surface) {
+                Surface = _Surface;
+            }
+        }
 
-        IMyTextSurface Surface;
+        public void Render(MySprite Sprite)
+        {
+            Rectangle _Hitbox = new Rectangle();
+            if (Sprite.Type == SpriteType.TEXT)
+            {
+                Vector2 ContentSize = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(Sprite.Data), Sprite.FontId, Sprite.RotationOrScale);
+                _Hitbox = new Rectangle((int)Sprite.Position.Value.X, (int)Sprite.Position.Value.Y, (int)ContentSize.X, (int)ContentSize.Y);
+            }
+            if (Sprite.Position != null & Sprite.Size != null)
+            {
+                _Hitbox = new Rectangle((int)Sprite.Position.Value.X, (int)Sprite.Position.Value.Y, (int)Sprite.Size.Value.X, (int)Sprite.Size.Value.Y);
+            }
+            foreach(Monitor _Screen in Monitors)
+            {
+                if (_Hitbox.Intersects(_Screen.Hitbox))
+                {
+                    _Screen.Frame.Add(new MySprite(Sprite.Type, Sprite.Data, Sprite.Position - _Screen.Viewport.Position, Sprite.Size, Sprite.Color, Sprite.FontId, Sprite.Alignment, Sprite.RotationOrScale));
+                }
+            }
+
+
+        }
+
+        List<Monitor> Monitors = new List<Monitor> { };
         IMyCubeGrid Grid;
+        TileState[,] tiles;
+        Vector3I gridmin, gridmax;
         RectangleF ViewPort;
+        List<RectangleF> ViewPorts = new List<RectangleF> { };
         Rectangle taskbar, StartButton, Menu;
-        string debugText;
+        string debugText, DiagStatus;
         Vector2 Cursor, CursorV, offset, drag_to;
-        bool clicked, near, drag, Clicked, MenuEnabled;
-        int blocknumbers;
+        bool clicked, near, drag, Clicked, MenuEnabled, Clear, want_reset = true;
+        int blocknumbers, tilesize, DiagHull, idx;
+        List<MySprite> SpriteBuffer = new List<MySprite> { }, SpriteConstructor = new List<MySprite> { };
         List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock> { };
         List<Window> Windows = new List<Window> { };
         List<Buttons> StartMenuButton = new List<Buttons> { };
         List<Event> Tasks = new List<Event> { };
         List<Event> HighPriorityTasks = new List<Event> { };
         List<Event> LowPriorityTasks = new List<Event> { };
-        public MySpriteDrawFrame frame;
+        List<MySpriteDrawFrame> Frame = new List<MySpriteDrawFrame> { };
+        List<TerminalBlockState> _TerminalBlocks = new List<TerminalBlockState>();
         Color Theme = new Vector4(.1f, .1f, .1f, .95f);
         Color Faction = new Vector3(21, 0, 25);
         Color Dark = new Vector3(16, 16, 16);
         Random rnd = new Random();
         IMyCockpit helm;
         IMyShipWelder welder;
+        IEnumerator<bool> ResetDiag;
+        IEnumerator<bool> DiagTask;
 
 
 
         void _Debug(string argument)
         {
             debugText = "Cursor: " + Cursor.X.ToString("0.00") + " , " + Cursor.Y.ToString("0.00") +
-        "\nVirtual Cursor: " + CursorV.X.ToString("0.00") + " , " + CursorV.Y.ToString("0.00") +
-        "\nScreen 1: " + ViewPort + "\nResolution: " + Surface.SurfaceSize +
-        "\nStart Menu: " + MenuEnabled;
+            "\nVirtual Cursor: " + CursorV.X.ToString("0.00") + " , " + CursorV.Y.ToString("0.00") + "\nStart Menu: " + MenuEnabled +
+            "\nResolution: " + ViewPort.Width + "x" + ViewPort.Height;
+
+            foreach (Monitor _Screen in Monitors)
+            {
+                debugText = debugText + "\nScreen" + Monitors.FindIndex(A => A == _Screen) + ": " + _Screen.Hitbox.Width + "x" + _Screen.Hitbox.Height;
+            }
+
             switch (argument)
             {
                 case "New": NewWindow(new Vector2(15, 0), "Debug", new Content(debugText)); Windows.Last().Inheritance = _Debug; Tasks.Add(new Event(_Debug, "Run")); break;
                 case "Kill": Kill(_Debug); break;
                 case "Run": Windows[Windows.FindIndex(a => a.Inheritance == _Debug)].Content.MyContent = debugText; break;
+                case "Log": Echo(debugText); break;
             }
-
         }
 
-
-
-        IEnumerator<bool> ResetDiag;
-        IEnumerator<bool> current_work;
         public void RunDiagnostic(string argument)
         {
             try
@@ -459,29 +507,29 @@ namespace IngameScript
                 switch (argument)
                 {
                     case "New":
-                        NewWindow(new Vector2(15, 30), "Ship Diagnostic", new Content("Ship Diagnostic"), 250, 250); Windows.Last().Inheritance = RunDiagnostic; HighPriorityTasks.Add(new Event(RunDiagnostic, "Run")); want_reset = true;
+                        NewWindow(new Vector2(15, 30), "Ship Diagnostic", new Content("Ship Diagnostic"), 1050, 1050); Windows.Last().Inheritance = RunDiagnostic; HighPriorityTasks.Add(new Event(RunDiagnostic, "Run")); want_reset = true;
                         Tasks.Add(new Event(RunDiagnostic, "Run"));
                         break;
                     case "Run":
                         Window _Window = Windows[Windows.FindIndex(a => a.Inheritance == RunDiagnostic)];
-                        _Window.Content.MyContent = "Ship Diagnostic\nSpriteBuffer: " + SpriteBuffer.Count;
+                        _Window.Content.MyContent = "Ship Diagnostic\nSpriteBuffer: " + SpriteBuffer.Count + "\n" + DiagStatus;
                         _Window.Content.Sprites = SpriteBuffer;
                         if (ResetDiag == null)
                             ResetDiag = ClearDiag().GetEnumerator();
                         if (ResetDiag.MoveNext() == false)
                         {
-                            if (want_reset) { ResetDiag.Dispose(); current_work.Dispose(); }
+                            if (want_reset) { ResetDiag.Dispose(); DiagTask.Dispose(); }
                             if (!drag)
                             {
-                                if (current_work == null)
-                                    current_work = RunDiag().GetEnumerator();
-                                if (current_work.MoveNext() == false)
+                                if (DiagTask == null)
+                                    DiagTask = RunDiag().GetEnumerator();
+                                if (DiagTask.MoveNext() == false)
                                 {
-                                    current_work.Dispose();
-                                    current_work = null;
+                                    DiagTask.Dispose();
+                                    DiagTask = null;
                                 }
                             }
-                            else if (current_work != null) current_work.Dispose();
+                            else if (DiagTask != null) DiagTask.Dispose();
                         }
                         if (Clear) HighPriorityTasks.Remove(new Event(RunDiagnostic, "Run"));
                         Clear = false;
@@ -492,65 +540,47 @@ namespace IngameScript
             catch { }
         }
 
-
         public delegate Vector3I RotateFunc(Vector3I pos, Vector3I size);
-
         static Vector3I Rot1(Vector3I pos, Vector3I size) { return new Vector3I(size.Y - pos.Y, pos.X, pos.Z); }
         static Vector3I Rot2(Vector3I pos, Vector3I size) { return new Vector3I(size.X - pos.X, size.Y - pos.Y, pos.Z); }
         static Vector3I Rot3(Vector3I pos, Vector3I size) { return new Vector3I(pos.Y, size.X - pos.X, pos.Z); }
-
         static Vector3I XUp(Vector3I pos, Vector3I size) { return new Vector3I(pos.Z, pos.Y, pos.X); }
         static Vector3I YUp(Vector3I pos, Vector3I size) { return new Vector3I(size.Z - pos.Z, pos.X, pos.Y); }
         static Vector3I ZUp(Vector3I pos, Vector3I size) { return new Vector3I(size.X - pos.X, pos.Y, pos.Z); }
-
         static Vector3I XUp1(Vector3I pos, Vector3I size) { return Rot1(XUp(pos, size), Vector3I.Abs(XUp(size, Vector3I.Zero))); }
         static Vector3I XUp2(Vector3I pos, Vector3I size) { return Rot2(XUp(pos, size), Vector3I.Abs(XUp(size, Vector3I.Zero))); }
         static Vector3I XUp3(Vector3I pos, Vector3I size) { return Rot3(XUp(pos, size), Vector3I.Abs(XUp(size, Vector3I.Zero))); }
-
         static Vector3I YUp1(Vector3I pos, Vector3I size) { return Rot1(YUp(pos, size), Vector3I.Abs(YUp(size, Vector3I.Zero))); }
         static Vector3I YUp2(Vector3I pos, Vector3I size) { return Rot2(YUp(pos, size), Vector3I.Abs(YUp(size, Vector3I.Zero))); }
         static Vector3I YUp3(Vector3I pos, Vector3I size) { return Rot3(YUp(pos, size), Vector3I.Abs(YUp(size, Vector3I.Zero))); }
-
         static Vector3I ZUp1(Vector3I pos, Vector3I size) { return Rot1(ZUp(pos, size), Vector3I.Abs(ZUp(size, Vector3I.Zero))); }
         static Vector3I ZUp2(Vector3I pos, Vector3I size) { return Rot2(ZUp(pos, size), Vector3I.Abs(ZUp(size, Vector3I.Zero))); }
         static Vector3I ZUp3(Vector3I pos, Vector3I size) { return Rot3(ZUp(pos, size), Vector3I.Abs(ZUp(size, Vector3I.Zero))); }
-
         static Vector3I XDown(Vector3I pos, Vector3I size) { return new Vector3I(pos.Z, size.Y - pos.Y, size.X - pos.X); }
         static Vector3I YDown(Vector3I pos, Vector3I size) { return new Vector3I(size.Z - pos.Z, size.X - pos.X, size.Y - pos.Y); }
         static Vector3I ZDown(Vector3I pos, Vector3I size) { return new Vector3I(size.X - pos.X, size.Y - pos.Y, size.Z - pos.Z); }
-
         static Vector3I XDown1(Vector3I pos, Vector3I size) { return Rot1(XDown(pos, size), Vector3I.Abs(XDown(size, Vector3I.Zero))); }
         static Vector3I XDown2(Vector3I pos, Vector3I size) { return Rot2(XDown(pos, size), Vector3I.Abs(XDown(size, Vector3I.Zero))); }
         static Vector3I XDown3(Vector3I pos, Vector3I size) { return Rot3(XDown(pos, size), Vector3I.Abs(XDown(size, Vector3I.Zero))); }
-
         static Vector3I YDown1(Vector3I pos, Vector3I size) { return Rot1(YDown(pos, size), Vector3I.Abs(YDown(size, Vector3I.Zero))); }
         static Vector3I YDown2(Vector3I pos, Vector3I size) { return Rot2(YDown(pos, size), Vector3I.Abs(YDown(size, Vector3I.Zero))); }
         static Vector3I YDown3(Vector3I pos, Vector3I size) { return Rot3(YDown(pos, size), Vector3I.Abs(YDown(size, Vector3I.Zero))); }
-
         static Vector3I ZDown1(Vector3I pos, Vector3I size) { return Rot1(ZDown(pos, size), Vector3I.Abs(ZDown(size, Vector3I.Zero))); }
         static Vector3I ZDown2(Vector3I pos, Vector3I size) { return Rot2(ZDown(pos, size), Vector3I.Abs(ZDown(size, Vector3I.Zero))); }
         static Vector3I ZDown3(Vector3I pos, Vector3I size) { return Rot3(ZDown(pos, size), Vector3I.Abs(ZDown(size, Vector3I.Zero))); }
 
-        int idx = 0;
         static RotateFunc[] funcs = new RotateFunc[] {
             XUp, XUp1, XUp2, XUp3, YUp, YUp1, YUp2, YUp3, ZUp, ZUp1, ZUp2, ZUp3,
             XDown, XDown1, XDown2, XDown3, YDown, YDown1, YDown2, YDown3, ZDown, ZDown1, ZDown2, ZDown3
         };
-        enum BlockState
-        {
-            Empty, Destroyed, Damaged, Normal
-        }
+        enum BlockState{Empty, Missing, Damaged, Normal}
         BlockState[,,] saved_grid;
-        Vector3I gridmin, gridmax;
+
         struct TileState
         {
             public int Healthy, Total;
             public int Depth;
         }
-        int tilesize;
-        TileState[,] tiles;
-
-        int hull_percent = 0;
 
         IEnumerable<bool> CheckGrid(IMyCubeGrid grid, bool check_damaged)
         {
@@ -576,7 +606,7 @@ namespace IngameScript
                             {
                                 ++total;
                                 if (!grid.CubeExists(pos))
-                                    saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z] = BlockState.Destroyed;
+                                    saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z] = BlockState.Missing;
                                 else
                                     ++total_healthy;
                             }
@@ -587,7 +617,7 @@ namespace IngameScript
                 }
                 yield return true;
             }
-            hull_percent = total > 0 ? total_healthy * 100 / total : 100;
+            DiagHull = total > 0 ? total_healthy * 100 / total : 100;
         }
 
         IEnumerable<bool> Draw(RotateFunc swizzle, RectangleF _Canvas)
@@ -655,11 +685,6 @@ namespace IngameScript
             public BlockState State;
             public IMyTerminalBlock Block;
         }
-        List<TerminalBlockState> _TerminalBlocks = new List<TerminalBlockState>();
-        List<IMyTerminalBlock> lcds = new List<IMyTerminalBlock>();
-        List<IMyTerminalBlock> healthbars = new List<IMyTerminalBlock>();
-        string health_string = "";
-        bool want_reset = true;
 
         IEnumerable<bool> ClearDiag()
         {
@@ -678,47 +703,29 @@ namespace IngameScript
         }
         IEnumerable<bool> RunDiag()
         {
-            //Update grid
+            idx = (idx + 1) % funcs.Length;
+            foreach (bool val in CheckGrid(Grid, true))
+                yield return val;
+            int terminal_healthy = 0;
+            for (int i = 0; i < _TerminalBlocks.Count; ++i)
             {
-                idx = (idx + 1) % funcs.Length;
-                GridTerminalSystem.GetBlocksOfType<IMyTextSurfaceProvider>(lcds, block => block.CubeGrid == Me.CubeGrid && block.CustomData.Contains("ShipLayout") && !block.CustomData.Contains("ShipLayoutHealth"));
-                GridTerminalSystem.GetBlocksOfType<IMyTextSurface>(healthbars, block => block.CustomData.Contains("ShipLayoutHealth"));
-                foreach (bool val in CheckGrid(Grid, true))
-                    yield return val;
-                int terminal_healthy = 0;
-                for (int i = 0; i < _TerminalBlocks.Count; ++i)
-                {
-                    bool exists = Grid.CubeExists(_TerminalBlocks[i].Position);
-                    bool working = _TerminalBlocks[i].Block.IsWorking;
-                    if (exists)
-                        ++terminal_healthy;
-                    TerminalBlockState s = _TerminalBlocks[i];
-                    s.State = exists && working ? BlockState.Normal : exists ? BlockState.Damaged : BlockState.Destroyed;
-                    _TerminalBlocks[i] = s;
-                }
-                int terminal_percent = _TerminalBlocks.Count > 0 ? terminal_healthy * 100 / _TerminalBlocks.Count : 100;
-                health_string = string.Format("Hull " + hull_percent.ToString("000") + "% Systems " + terminal_percent.ToString("000") + "%");
+                bool exists = Grid.CubeExists(_TerminalBlocks[i].Position);
+                bool working = _TerminalBlocks[i].Block.IsWorking;
+                if (exists)
+                    ++terminal_healthy;
+                TerminalBlockState s = _TerminalBlocks[i];
+                s.State = exists && working ? BlockState.Normal : exists ? BlockState.Damaged : BlockState.Missing;
+                _TerminalBlocks[i] = s;
             }
-            /*Update healthbars
-            for (int i = 0; i < healthbars.Count; ++i)
-            {
-                IMyTextSurface surf = (IMyTextSurface)healthbars[i];
-                surf.ContentType = ContentType.TEXT_AND_IMAGE;
-                surf.WriteText(health_string);
-            }
-            *///Draw LCD screen
-            {
-                RotateFunc swizzle = funcs[idx];
-                swizzle = funcs[10 % funcs.Length];
-                foreach (bool val in Draw(swizzle, Windows[Windows.FindIndex(a => a.Inheritance == RunDiagnostic)].Content.ContentCanvas))
-                    yield return val;
-                SpriteBuffer = SpriteConstructor.ToList();
-                SpriteConstructor.Clear();
-            }
+            int DiagSystems = _TerminalBlocks.Count > 0 ? terminal_healthy * 100 / _TerminalBlocks.Count : 100;
+            RotateFunc swizzle = funcs[idx];
+            swizzle = funcs[10 % funcs.Length];
+            foreach (bool val in Draw(swizzle, Windows[Windows.FindIndex(a => a.Inheritance == RunDiagnostic)].Content.ContentCanvas))
+                yield return val;
+            DiagStatus = string.Format("Hull Integrity: " + DiagHull.ToString("000") + "%\nSystems Integrity: " + DiagSystems.ToString("000") + "%");
+            SpriteBuffer = SpriteConstructor.ToList();
+            SpriteConstructor.Clear();
             if (!want_reset) Clear = true;
         }
-        bool Clear;
-        List<MySprite> SpriteBuffer = new List<MySprite> { };
-        List<MySprite> SpriteConstructor = new List<MySprite> { };
     }
 }
