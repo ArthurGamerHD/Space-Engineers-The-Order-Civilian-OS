@@ -25,6 +25,7 @@ namespace IngameScript
 
         Color Theme = new Vector4(9 / 255f, 98 / 255f, 166 / 255f, 255);
         Color BackgroundColor = new Vector4(2 / 255f, 4 / 255f, 76 / 255f, 255);
+        Color CanvasColor = Color.DarkGray;
 
         public void Shortcuts()
         {
@@ -33,7 +34,6 @@ namespace IngameScript
                 new Buttons("Debug", new Event(Debug, "New", null)),
                 new Buttons("Ship Diagnostic", new Event(SelfDiagnostic, "New", null)),
                 new Buttons("HW_Info", new Event(HWInfo, "New", null)),
-                new Buttons("DisplayRefresh", new Event(DisplayManagment, "New", null))
         };
         }
         public void Startup()
@@ -41,8 +41,7 @@ namespace IngameScript
             //Custom Programs Auto Start Here
 
             Services.Add(new Action<string, UpdateType>(DiagMain));
-            if (FlyByWireOOBE()) { Services.Add(new Action<string, UpdateType>(FlyByWire)); StartMenuButton.Add(new Buttons("FlyByWireSubRotine", new Event(FlyByWireSubRotine, "New", null))); }
-            DisplayManagmentSetup();
+            Services.Add(new Action<string, UpdateType>(Network));
         }
 
 
@@ -69,14 +68,14 @@ namespace IngameScript
         }
         void Main(string argument, UpdateType updateSource)
         {
-            if (argument == "RED") {
+            Echo("Doing Something");
 
-                Theme = Color.Red;
-                BackgroundColor = Color.DarkMagenta;
-            }
-
-            DisplayManagment("", null);
-            Echo("Something");
+            if ((updateSource & UpdateType.Update1) != 0)
+                foreach (Event _Task in HighPriorityTasks) _Task.Action(_Task.Parameter, _Task.Window);
+            if ((updateSource & UpdateType.Update10) != 0)
+                foreach (Event _Task in Tasks) _Task.Action(_Task.Parameter, _Task.Window);
+            if ((updateSource & UpdateType.Update100) != 0)
+                foreach (Event _Task in LowPriorityTasks) _Task.Action(_Task.Parameter, _Task.Window);
 
             foreach (Action<string, UpdateType> Run in Services) Run(argument, updateSource);
             if (Monitors.Count > 1)
@@ -106,12 +105,6 @@ namespace IngameScript
             if (ScreenUpdate.MoveNext() == false)
             {
                 ScreenUpdate.Dispose();
-                if ((updateSource & UpdateType.Update1) != 0)
-                    foreach (Event _Task in HighPriorityTasks) _Task.Action(_Task.Parameter, _Task.Window);
-                if ((updateSource & UpdateType.Update10) != 0)
-                    foreach (Event _Task in Tasks) _Task.Action(_Task.Parameter, _Task.Window);
-                if ((updateSource & UpdateType.Update100) != 0)
-                    foreach (Event _Task in LowPriorityTasks) _Task.Action(_Task.Parameter, _Task.Window);
                 ScreenUpdate = null;
             }
             SystemMetrics();
@@ -123,6 +116,7 @@ namespace IngameScript
         {
             for (int i = 0; i < Monitors.Count; i++)
             {
+                Monitors[i].Surface.ScriptBackgroundColor = BackgroundColor;
                 Monitors[i].Frame.Dispose();
                 Monitors[i].Frame = Monitors[i].Surface.DrawFrame();
             }
@@ -146,9 +140,14 @@ namespace IngameScript
         }
         void Reload()
         {
-            Monitors.Add(new Monitor(Me.GetSurface(0)));
+            Rbx = IGC.RegisterBroadcastListener(Me.CubeGrid.CustomName);
+            Rbx.SetMessageCallback("RBX");
+            Rx = IGC.UnicastListener;
+            Rx.SetMessageCallback("RX");
+
             if (blocknumbers != blocks.Count())
             {
+
                 List<IMyTextPanel> Panels = new List<IMyTextPanel> { };
                 blocknumbers = blocks.Count();
                 foreach (IMyTerminalBlock block in blocks)
@@ -156,19 +155,23 @@ namespace IngameScript
                     if (block is IMyCockpit & block.CustomName.Contains("Main Computer Station")) helm = (IMyCockpit)block;
                     if (block is IMyShipConnector && block.CubeGrid == Me.CubeGrid) Connectors.Add((IMyShipConnector)block);
                     if (block is IMyShipWelder & block.CustomName.Contains("Mouse")) welder = (IMyShipWelder)block;
-                    if (block is IMyTextPanel & block.CustomName.Contains("LCD Master")) { Monitors.RemoveAt(0); Panels.Add((IMyTextPanel)block); ((IMyTextPanel)block).ContentType = ContentType.SCRIPT; };
+                    if (block is IMyTextPanel & block.CustomName.Contains("LCD Master")) { Panels.Add((IMyTextPanel)block); ((IMyTextPanel)block).ContentType = ContentType.SCRIPT; };
                     if (block is IMyTextPanel & block.CustomName.Contains("LCD Slave")) { Panels.Add((IMyTextPanel)block); ((IMyTextPanel)block).ContentType = ContentType.SCRIPT; };
 
                 }
-                if (Monitors[0] != Me.GetSurface(0))
-                    Panels.Sort((A, B) => A.CustomName.CompareTo(B.CustomName));
-                foreach (IMyTextPanel Panel in Panels)
+                if (Panels.Count > 0)
                 {
-                    if (Panel.BlockDefinition.SubtypeId.Equals(Panels[0].BlockDefinition.SubtypeId) && Panel.BlockDefinition.Equals(Panels[0].BlockDefinition))
+                    Panels.Sort((A, B) => A.CustomName.CompareTo(B.CustomName));
+                    foreach (IMyTextPanel Panel in Panels)
                     {
-                        Monitors.Add(new Monitor(Panel));
+                        if (Panel.BlockDefinition.SubtypeId.Equals(Panels[0].BlockDefinition.SubtypeId) && Panel.BlockDefinition.Equals(Panels[0].BlockDefinition))
+                        {
+                            Monitors.Add(new Monitor(Panel));
+                        }
                     }
                 }
+                else
+                    Monitors.Add(new Monitor(Me.GetSurface(0)));
             }
         }
         void GetCursor(bool _update)
@@ -211,13 +214,13 @@ namespace IngameScript
                     if (Clicked & clicked & drag)
                     {
                         Window _Window = Windows.Last(); _Window.Position += (Cursor - new Vector2(drag_to.X, drag_to.Y));
-                        if (_Window.Content.Sprites != null) { List<MySprite> _Sprites = _Window.Content.Sprites; for (int i = 0; i < _Sprites.Count; i++) _Sprites[i] = new MySprite(SpriteType.TEXTURE, _Sprites[i].Data, (_Sprites[i].Position + (Cursor - new Vector2(drag_to.X, drag_to.Y))), _Sprites[i].Size.Value, _Sprites[i].Color.Value); _Window.Content.ContentCanvas = new RectangleF(_Window.Content.MyContentBox.X, _Window.Content.MyContentBox.Y, _Window.Content.MyContentBox.Width, _Window.Content.MyContentBox.Height); }
+                        if (_Window.Content.Sprites != null) { List<MySprite> _Sprites = _Window.Content.Sprites; for (int i = 0; i < _Sprites.Count; i++) _Sprites[i] = new MySprite(_Sprites[i].Type, _Sprites[i].Data, (_Sprites[i].Position + Cursor - drag_to), _Sprites[i].Size.Value, _Sprites[i].Color.Value, null, _Sprites[i].Alignment, _Sprites[i].RotationOrScale); _Window.Content.ContentCanvas = new RectangleF(_Window.Content.MyContentBox.X, _Window.Content.MyContentBox.Y, _Window.Content.MyContentBox.Width, _Window.Content.MyContentBox.Height); }
                         WindowBuilder(_Window); drag_to = new Vector2(Cursor.X, Cursor.Y);
                     }
                     else if (!clicked & drag) { drag = false; }
                     Clicked = clicked;
                 }
-                catch (Exception Error) { Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Error; GenericErrorMessage("GetCursorÇ" + Error.ToString(), null); };
+                catch (Exception Error) { Log("GetCursor&" + Error.ToString()); };
             }
         }
 
@@ -237,7 +240,7 @@ namespace IngameScript
             {
                 _Task.Action(_Task.Parameter, _Task.Window);
             }
-            catch (Exception Error) { Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Error; GenericErrorMessage("ClickHandleÇ" + Error.ToString(), null); };
+            catch (Exception Error) { Log("ClickHandle&" + Error.ToString()); };
         }
         void Kill(Window _Window)
         {
@@ -245,6 +248,34 @@ namespace IngameScript
             try { Tasks.RemoveAt(Tasks.FindIndex(a => a.Window == _Window)); } catch { };
             try { HighPriorityTasks.RemoveAt(HighPriorityTasks.FindIndex(a => a.Window == _Window)); } catch { };
             Windows.Remove(_Window);
+        }
+
+        public void Network(string Argument, UpdateType updateSource)
+        {
+            MyIGCMessage data = new MyIGCMessage();
+            string Text;
+            long Source = 0;
+            string Tag;
+            try
+            {
+                while (Rx.HasPendingMessage)
+                {
+                    data = Rx.AcceptMessage();
+                    Tag = data.Tag;
+                    Source = data.Source;
+                    Text = data.Data.ToString();
+                    GenericMessage("Message From Address: " + Source + "&" + Text, null);
+                }
+                while (Rbx.HasPendingMessage)
+                {
+                    data = Rbx.AcceptMessage();
+                    Tag = data.Tag;
+                    Source = data.Source;
+                    Text = data.Data.ToString();
+                    GenericMessage("Message From Address: " + Source + "&" + Text, null);
+                }
+            }
+            catch { GenericMessage("Message From Address: " + Source + "&" + "Fail to Interpret", null); }
         }
         #endregion
         #region Render
@@ -298,14 +329,9 @@ namespace IngameScript
         {
             Rectangle _Hitbox;
             Vector2 ContentSize;
-            if (Sprite.Type == SpriteType.TEXT)
-            {
-                ContentSize = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(Sprite.Data), Sprite.FontId, Sprite.RotationOrScale);
-            }
-            else
-            {
+            if (Sprite.Type != SpriteType.TEXT)
                 ContentSize = Sprite.Size.Value;
-            }
+            else ContentSize = new Vector2();
             try
             {
                 _Hitbox = new Rectangle(
@@ -315,13 +341,13 @@ namespace IngameScript
                     (int)ContentSize.Y * 2);
                 foreach (Monitor _Screen in Monitors)
                 {
-                    if (_Hitbox.Intersects(_Screen.Hitbox))
+                    if (_Hitbox.Intersects(_Screen.Hitbox) || Sprite.Type == SpriteType.TEXT)
                     {
                         _Screen.Frame.Add(new MySprite(Sprite.Type, Sprite.Data, Sprite.Position - _Screen.Viewport.Position + _Screen.Offset, Sprite.Size, Sprite.Color, Sprite.FontId, Sprite.Alignment, Sprite.RotationOrScale));
                     }
                 }
             }
-            catch (Exception Error) { Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Error; GenericErrorMessage("RenderÇ" + Error.ToString(), null); }
+            catch (Exception Error) { Log("Render&" + Error.ToString()); }
         }
         #endregion
         #region Window Builder
@@ -358,15 +384,33 @@ namespace IngameScript
             if (_Window.Content.MyContent != null)
             {
                 string _ContenString = _Window.Content.MyContent;
-                Vector2 ContentSize = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, 1.2f);
-                if (ContentSize.X < ViewPort.Size.X) ContentSize.X = ViewPort.Size.X;
-                if (ContentSize.Y < ViewPort.Size.Y) ContentSize.Y = ViewPort.Size.Y;
-                float scale = Math.Min((ViewPort.Size.X - 40) / ContentSize.X, (ViewPort.Size.Y) / ContentSize.Y);
-                ContentSize = Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, scale);
-                _Window.MyFrame = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top, (int)Math.Max(Math.Max(_Window.MyFrame.Width, ContentSize.X), _Window.MinimumSize.X), _Window.MyFrame.Height + (int)Math.Max(ContentSize.Y, _Window.MinimumSize.Y));
-                _Window.Content.MyContentBox = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top + 32, _Window.MyFrame.Width, _Window.MyFrame.Height - 32);
-                _Window.Content.ContentCanvas = new RectangleF(_Window.Content.MyContentBox.X, _Window.Content.MyContentBox.Y, _Window.Content.MyContentBox.Width, _Window.Content.MyContentBox.Height);
-                _Window.Content.MyScale = (scale);
+                if (_ContenString.StartsWith("[Sprite Builder Display Script"))
+                {
+                    MyIni _ini = new MyIni();
+                    MyIniParseResult result;
+                    if (!_ini.TryParse(_ContenString, out result))
+                    {
+                        Me.CustomData = $"CustomData error:\nLine {result}";
+                    }
+                    _Window.MyFrame = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top, (int)Math.Max(Math.Max(_Window.MyFrame.Width, 512), _Window.MinimumSize.X), _Window.MyFrame.Height + (int)Math.Max(512, _Window.MinimumSize.Y));
+                    _Window.Content.MyContentBox = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top + 32, _Window.MyFrame.Width, _Window.MyFrame.Height - 32);
+                    _Window.Content.ContentCanvas = new RectangleF(_Window.Content.MyContentBox.X, _Window.Content.MyContentBox.Y, _Window.Content.MyContentBox.Width, _Window.Content.MyContentBox.Height);
+                    _Window.Content.Sprites = new List<MySprite> { new MySprite(SpriteType.TEXT, "SquareSimple", new Vector2(_Window.MyFrame.X - 2, _Window.MyFrame.Y - 2), new Vector2(_Window.MyFrame.Width + 4, _Window.MyFrame.Height + 4), Color.White) };
+                    _Window.Content.MyContent = "";
+                    SpriteDecoder(_ini, _Window.Content, 1);
+                }
+                else
+                {
+                    Vector2 ContentSize = (_ContenString != "") ? Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, 1.2f) : new Vector2(512, 512);
+                    if (ContentSize.X < ViewPort.Size.X) ContentSize.X = ViewPort.Size.X;
+                    if (ContentSize.Y < ViewPort.Size.Y) ContentSize.Y = ViewPort.Size.Y;
+                    float scale = Math.Min((ViewPort.Size.X - 40) / ContentSize.X, (ViewPort.Size.Y) / ContentSize.Y);
+                    ContentSize = (_ContenString != "") ? Monitors[0].Surface.MeasureStringInPixels(new StringBuilder(_ContenString), _Window.Content.MyFont, scale) : new Vector2(512, 512);
+                    _Window.MyFrame = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top, (int)Math.Max(Math.Max(_Window.MyFrame.Width, ContentSize.X), _Window.MinimumSize.X), _Window.MyFrame.Height + (int)Math.Max(ContentSize.Y, _Window.MinimumSize.Y));
+                    _Window.Content.MyContentBox = new Rectangle(_Window.MyFrame.Left, _Window.MyFrame.Top + 32, _Window.MyFrame.Width, _Window.MyFrame.Height - 32);
+                    _Window.Content.ContentCanvas = new RectangleF(_Window.Content.MyContentBox.X, _Window.Content.MyContentBox.Y, _Window.Content.MyContentBox.Width, _Window.Content.MyContentBox.Height);
+                    _Window.Content.MyScale = (scale);
+                }
             }
 
         }
@@ -381,7 +425,6 @@ namespace IngameScript
         void Comit(Window _Window)
         {
             if (_Window.MyToolbar == null) { WindowBuilder(_Window); };
-            DrawRectangle(new Rectangle(_Window.MyFrame.X - 1, _Window.MyFrame.Y - 1, _Window.MyFrame.Width + 2, _Window.MyFrame.Height + 2), Color.White);
             DrawRectangle(_Window.MyToolbar.Bar, Theme);
             WriteText(_Window.MyToolbar.Bar, _Window.Title, "InfoMessageBoxCaption", 1f);
             foreach (Buttons Button in _Window.MyToolbar.MyButton)
@@ -403,11 +446,6 @@ namespace IngameScript
                 {
                     DrawRectangle(_MyButton.Hitbox, Color.White);
                     if (_MyButton.Icon.Data != new MySprite().Data) DrawSprite(_MyButton.Hitbox, _MyButton.Icon);
-                }
-            if (Content.MyBar != null)
-                foreach (LoadingBar _MyBar in Content.MyBar)
-                {
-                    foreach (MySprite Sprite in _MyBar.Sprites) { Render(Sprite); }
                 }
         }
 
@@ -464,17 +502,38 @@ namespace IngameScript
             _Sprite.Color = _Color;
             Render(_Sprite);
         }
-        void GenericErrorMessage(string argument, Window _Window)
+        void Log(string argument)
         {
+            string[] Arg = argument.Split('&');
+            Me.CustomData = $"{Me.CustomData} \n\n< {DateTime.Now}>\nError at: {Arg[0]}\n {Arg[1]}";
+            try
+            {
+                GenericMessage("Error At: " + argument, null);
+            }
+            catch
+            {
+                Me.CustomData = $"{Me.CustomData} \n WARNING: Window managment appear to be offline, Rebooting";
+                Renew();
+                Reload();
+            }
+        }
+        void GenericMessage(string argument, Window _Window)
+        {
+
             switch (argument)
             {
                 case "Kill": Kill(_Window); break;
                 default:
-                    string[] Log = argument.Split('Ç');
-                    NewWindow(new Vector2(15, 0), "Error At: " + Log[0], new Content(Log[1])); _Window = Windows.Last(); _Window.Inheritance = GenericErrorMessage; WindowBuilder(_Window); break;
+                    string[] Arg = argument.Split('&');
+                    bool New = true;
+                    foreach (Window Window in Windows)
+                    { if (Window.Title == Arg[0]) { Window.Content = new Content(Arg[1]); New = false; } }
+                    if (New)
+                        NewWindow(new Vector2(15, 0), Arg[0], new Content(Arg[1])); _Window = Windows.Last(); _Window.Inheritance = GenericMessage; WindowBuilder(_Window);
+                    break;
             }
-        }
 
+        }
 
         #endregion
         #region Custom Classes
@@ -531,7 +590,6 @@ namespace IngameScript
             public float Porcentage { get; set; }
             public Rectangle MyContentBox { get; set; }
             public Rectangle Foreground;
-            public List<MySprite> Sprites { get; set; }
             public LoadingBar(Rectangle _MyContentBox, float _Porcentage)
             {
                 MyContentBox = _MyContentBox;
@@ -589,7 +647,6 @@ namespace IngameScript
         Vector2 Cursor, CursorV, offset, drag_to;
         bool clicked, near, drag, Clicked, MenuEnabled;
         int blocknumbers, tilesize, DiagHull;
-        List<MySprite> SpriteConstructor = new List<MySprite> { };
         List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock> { };
         List<IMyShipConnector> Connectors = new List<IMyShipConnector> { };
         List<Window> Windows = new List<Window> { };
@@ -600,6 +657,8 @@ namespace IngameScript
         List<Action<string, UpdateType>> Services = new List<Action<string, UpdateType>> { };
         IMyCockpit helm;
         IMyShipWelder welder;
+        public IMyBroadcastListener Rbx;
+        public IMyUnicastListener Rx;
         #endregion
         #region Custom Programs
 
@@ -638,7 +697,7 @@ namespace IngameScript
 
         void SystemMetrics()
         {
-            Telemetry.Runtime.Add(Math.Round(Runtime.LastRunTimeMs, 4));
+            Telemetry.Runtime.Add(Runtime.LastRunTimeMs);
             if (Telemetry.Runtime.Count > 100) Telemetry.Runtime.RemoveAt(0);
             Telemetry.Instructions.Add(Runtime.CurrentInstructionCount);
             double Max = Telemetry.Instructions.Max(a => a);
@@ -655,30 +714,31 @@ namespace IngameScript
         {
             switch (argument)
             {
-                case "New": NewWindow(new Vector2(15, 0), "Hardware Info", new Content(HWText), 450, 250); _Window = Windows.Last(); _Window.Inheritance = HWInfo; Tasks.Add(new Event(HWInfo, "Run", _Window)); WindowBuilder(_Window); break;
+                case "New": NewWindow(new Vector2(15, 0), "Hardware Info", new Content(HWText), 450, 250); _Window = Windows.Last(); _Window.Inheritance = HWInfo; Tasks.Add(new Event(HWInfo, "Run", _Window)); break;
                 case "Kill": Kill(_Window); break;
                 case "Run":
                     SystemMetrics(); _Window.Content.MyContent = HWText;
                     _Window.Content.MyBar = new List<LoadingBar> { new LoadingBar(new Rectangle(_Window.Content.MyContentBox.Left, _Window.Content.MyContentBox.Bottom - 32, _Window.Content.MyContentBox.Width, 32), ((float)Telemetry.Instructions.Max(a => a) / Runtime.MaxInstructionCount)) };
                     Rectangle _Frame = _Window.Content.MyBar[0].MyContentBox;
-                    _Window.Content.MyBar[0].Sprites = new List<MySprite> { (new MySprite()
+                    _Window.Content.Sprites = new List<MySprite> { (new MySprite()
                     {
                         Type = SpriteType.TEXTURE,
                         Data = "SquareSimple",
                         Position = new Vector2(_Frame.Left, _Frame.Top + (_Frame.Height / 2)),
                         Size = new Vector2(_Frame.Width, _Frame.Height),
-                        Color = Color.White
+                        Color = Color.White,
+                        Alignment = TextAlignment.LEFT
                     })};
                     _Frame = _Window.Content.MyBar[0].Foreground;
-                    _Window.Content.MyBar[0].Sprites.Add(new MySprite()
+                    _Window.Content.Sprites.Add(new MySprite()
                     {
                         Type = SpriteType.TEXTURE,
                         Data = "SquareSimple",
                         Position = new Vector2(_Frame.Left, _Frame.Top + (_Frame.Height / 2)),
                         Size = new Vector2(_Frame.Width, _Frame.Height),
-                        Color = (_Window.Content.MyBar[0].Porcentage > .75f) ? Color.Red : (_Window.Content.MyBar[0].Porcentage > .5f) ? Color.Yellow : Color.Green
-                    }); ;
-
+                        Color = (_Window.Content.MyBar[0].Porcentage > .75f) ? Color.Red : (_Window.Content.MyBar[0].Porcentage > .5f) ? Color.Yellow : Color.Green,
+                        Alignment = TextAlignment.LEFT
+                    });
                     break;
                 case "Log": Echo(HWText); break;
             }
@@ -713,12 +773,12 @@ namespace IngameScript
                         DisplaysDiag.Add(new DisplayDiagnostic(_Window));
                         string index = DisplaysDiag.FindIndex(a => a.Me == _Window).ToString();
                         _Window.Footer.MyButton = new List<Buttons> {
-                            new Buttons("<", new Event(Selector, "Angleç-ç"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:-1.570796f)),
-                            new Buttons(">", new Event(Selector, "Angleç+ç"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:1.570796f)),
-                            new Buttons("+", new Event(Selector, "Planeç+ç"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:3.1415926536f)),
-                            new Buttons("-", new Event(Selector, "Planeç+ç"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:0)),
-                            new Buttons("◄", new Event(Selector, "Shipsç+ç"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:-1.570796f,color:Color.Red)),
-                            new Buttons("►", new Event(Selector, "Shipsç+ç"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:1.570796f,color:Color.Red))
+                            new Buttons("<", new Event(Selector, "Angle&-&"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:-1.570796f)),
+                            new Buttons(">", new Event(Selector, "Angle&+&"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:1.570796f)),
+                            new Buttons("+", new Event(Selector, "Plane&+&"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:3.1415926536f)),
+                            new Buttons("-", new Event(Selector, "Plane&+&"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:0)),
+                            new Buttons("◄", new Event(Selector, "Ships&+&"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:-1.570796f,color:Color.Red)),
+                            new Buttons("►", new Event(Selector, "Ships&+&"+index,_Window), new Rectangle(), null ,new MySprite(data:"Arrow", rotation:1.570796f,color:Color.Red))
                         };
                         _Window.Footer.MyContentBox = new Rectangle(_Window.Content.MyContentBox.Left, _Window.Content.MyContentBox.Bottom, _Window.Content.MyContentBox.Width, 64);
                         WindowBuilder(_Window);
@@ -745,14 +805,14 @@ namespace IngameScript
                             else if (Me.DiagTask != null) Me.DiagTask.Dispose();
                         }
                         break;
-                    case "Kill": Me = DisplaysDiag[DisplaysDiag.FindIndex(a => a.Me == _Window)]; Me.ResetDiag.Dispose(); Me.DiagTask.Dispose(); Me.SpriteBuffer.Clear(); SpriteConstructor.Clear(); Kill(_Window); break;
+                    case "Kill": Me = DisplaysDiag[DisplaysDiag.FindIndex(a => a.Me == _Window)]; Me.ResetDiag.Dispose(); Me.DiagTask.Dispose(); Me.SpriteBuffer.Clear(); ShipDiagSpriteConstructor.Clear(); Kill(_Window); break;
                 }
             }
             catch { SelfDiagnostic("Kill", _Window); }
         }
         public void Selector(string argument, Window _Window)
         {
-            string[] inputs = argument.Split('ç');
+            string[] inputs = argument.Split('&');
             DisplayDiagnostic Me = DisplaysDiag[int.Parse(inputs[2])];
             switch (inputs[0])
             {
@@ -788,7 +848,7 @@ namespace IngameScript
         }
 
         #region Diagnostic Storage
-
+        List<MySprite> ShipDiagSpriteConstructor = new List<MySprite> { };
         List<ShipDiagnostic> Ships = new List<ShipDiagnostic> { };
 
         public class ShipDiagnostic
@@ -942,21 +1002,39 @@ namespace IngameScript
                 }
                 yield return true;
             }
-            for (int _X = 0; _X <= _SpriteSize.X; _X++)
+            for (int _Y = 0; _Y <= _SpriteSize.Y; _Y++)
             {
-                for (int _Y = 0; _Y <= _SpriteSize.Y; _Y++)
+                int _Length = 1;
+                for (int _X = 0; _X <= _SpriteSize.X; _X++)
                 {
-                    TileState _MyTile = Ship.Tiles[_X, _Y];
-                    if (_MyTile.Total == 0)
-                        continue;
-                    float depth = ((float)_MyTile.Depth / (float)_SpriteSize.Z);
-                    depth = depth * depth * depth * depth + 0.05f;
-                    float health = _MyTile.Healthy / (float)_MyTile.Total;
-                    if (_MyTile.Healthy < _MyTile.Total)
-                        health *= 0.5f;
-                    SpriteConstructor.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(_X * _ScaleF + _OffsetX, _Y * _ScaleF + _OffsetY), new Vector2(_ScaleF, _ScaleF), new Color(depth, depth * health, depth * health)));
+                    if (_Length != 1) { _Length--; }
+                    else
+                    {
+                        TileState _MyTile = Ship.Tiles[_X, _Y];
+                        if (_MyTile.Total == 0)
+                            continue;
+                        try
+                        {
+                            bool check = true;
+                            while (check)
+                                if (_MyTile.Healthy == Ship.Tiles[_X + _Length, _Y].Healthy && _MyTile.Depth == Ship.Tiles[_X + _Length, _Y].Depth) { _Length++; }
+                                else
+                                { check = false; }
+                        }
+                        finally
+                        {
+                            float depth = ((float)_MyTile.Depth / (float)_SpriteSize.Z);
+                            depth = depth * depth * depth * depth + 0.05f;
+                            float health = _MyTile.Healthy / (float)_MyTile.Total;
+                            if (_MyTile.Healthy < _MyTile.Total)
+                                health *= 0.5f;
+                            ShipDiagSpriteConstructor.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(_X * _ScaleF + _OffsetX + ((_ScaleF / 2) * (_Length - 1)), _Y * _ScaleF + _OffsetY), new Vector2(_ScaleF * _Length, _ScaleF), new Color(depth, depth * health, depth * health)));
+                        }
+                    }
                 }
+                yield return true;
             }
+
             for (int i = 0; i < Ship.TerminalBlocks.Count; ++i)
             {
                 Vector3I poscube = Rotate(Ship.TerminalBlocks[i].Position - Ship.Grid_Min, _Scale);
@@ -964,7 +1042,7 @@ namespace IngameScript
                 if (possize.X < 0) { poscube.X += possize.X + 1; possize.X = -possize.X; }
                 if (possize.Y < 0) { poscube.Y += possize.Y + 1; possize.Y = -possize.Y; }
                 if (possize.Z < 0) { poscube.Z += possize.Z + 1; possize.Z = -possize.Z; }
-                SpriteConstructor.Add(new MySprite(SpriteType.TEXTURE, "SquareHollow", new Vector2((poscube.X + possize.X * 0.5f - 0.5f) * _ScaleF + _OffsetX, (poscube.Y + possize.Y * 0.5f - 0.5f) * _ScaleF + _OffsetY), new Vector2(possize.X * _ScaleF, possize.Y * _ScaleF), Ship.TerminalBlocks[i].State == BlockState.Normal ? Color.Green : Ship.TerminalBlocks[i].State == BlockState.Damaged ? Color.Yellow : Color.Red));
+                ShipDiagSpriteConstructor.Add(new MySprite(SpriteType.TEXTURE, "SquareHollow", new Vector2((poscube.X + possize.X * 0.5f - 0.5f) * _ScaleF + _OffsetX, (poscube.Y + possize.Y * 0.5f - 0.5f) * _ScaleF + _OffsetY), new Vector2(possize.X * _ScaleF, possize.Y * _ScaleF), Ship.TerminalBlocks[i].State == BlockState.Normal ? Color.Green : Ship.TerminalBlocks[i].State == BlockState.Damaged ? Color.Yellow : Color.Red));
             }
         }
 
@@ -998,713 +1076,80 @@ namespace IngameScript
                 Ship.TerminalBlocks[i] = s;
             }
             int DiagSystems = Ship.TerminalBlocks.Count > 0 ? terminal_healthy * 100 / Ship.TerminalBlocks.Count : 100;
-            Rotation Rotate = Bit[(_Display.Angle + (_Display.Plane * 4)) % Bit.Length];
+            Rotation Rotate = Bit[(_Display.Angle + (_Display.Plane * 4))];
             foreach (bool val in Draw(Rotate, Rectangle, Ship))
                 yield return val;
-            _Display.DiagStatus = string.Format("Hull Integrity: " + DiagHull.ToString("0") + "%\nSystems Integrity: " + DiagSystems.ToString("0") + "%");
-            _Display.SpriteBuffer = SpriteConstructor.ToList();
-            SpriteConstructor.Clear();
+            _Display.DiagStatus = string.Format($"Hull Integrity:{DiagHull.ToString("0") }%\nSystems Integrity: {DiagSystems.ToString("0")}%\nPreset: {_Display.Angle}");
+            _Display.SpriteBuffer = ShipDiagSpriteConstructor.ToList();
+            ShipDiagSpriteConstructor.Clear();
         }
         #endregion
 
-        #region Fly-By-Wire
+        #region Streaming
 
-        const string nameTag = "Fly-By-Wire";
-        const double dampenerScalingFactor = 50;
-        const double dampenerPrecisionDistance = 5.00;
-        const double fullBurnToleranceAngle = 30;
-        const double maxThrustAngle = 65;
-        const double maxDampeningAngle = 65;
-        const float YawSensivity = 1.0f;
-        const float PitchSensivity = 1.0f;
-        const float RollSensivity = 1.0f;
-        const float YawAngularInertia = 0.75f;
-        const float PitchAngularInertia = 0.75f;
-        const float RollAngularInertia = 0.75f;
-        class AdvGyroList
+        public void SpriteDecoder(MyIni _ini, Content _Frame, float Scale)
         {
-            public List<AdvGyro> Gyros { get; set; }
-            public IMyShipController Controller
-            { get; set; }
-            public AdvGyroList(List<IMyGyro> _Gyros, IMyTerminalBlock _Controller)
-            { Controller = (IMyShipController)_Controller; Gyros = new List<AdvGyro> { }; foreach (IMyGyro gyro in _Gyros) Gyros.Add(new AdvGyro(gyro, _Controller)); }
-        }
-        class AdvGyro
-        {
-            public IMyTerminalBlock Gyro
-            { get; private set; }
-            public float Pitch
-            {
-                get
-                { return Gyro.GetValueFloat(strPitch) * intPitch; }
-                set
-                { Gyro.SetValueFloat(strPitch, value * intPitch); }
-            }
-            public float Yaw
-            {
-                get
-                { return Gyro.GetValueFloat(strYaw) * intYaw; }
-                set
-                { Gyro.SetValueFloat(strYaw, value * intYaw); }
-            }
-            public float Roll
-            {
-                get
-                { return Gyro.GetValueFloat(strRoll) * intRoll; }
-                set
-                { Gyro.SetValueFloat(strRoll, value * intRoll); }
-            }
-            public float Power
-            {
-                get
-                { return Gyro.GetValueFloat("Power"); }
-                set
-                { Gyro.SetValueFloat("Power", value); }
-            }
-            public bool Override
-            {
-                get
-                { return Gyro.GetValue<bool>("Override"); }
-                set
-                { Gyro.SetValue<bool>("Override", value); }
-            }
-            public bool Enabled
-            {
-                get
-                { return Gyro.GetValue<bool>("OnOff"); }
-                set
-                { Gyro.SetValue<bool>("OnOff", value); }
-            }
-            private string strPitch; private int intPitch; private string strYaw; private int intYaw; private string strRoll; private int intRoll; public AdvGyro(IMyGyro _Gyro, IMyTerminalBlock ForwardCockpit)
-            { Gyro = _Gyro; Orientate(ForwardCockpit); }
-            public void Free()
-            { this.Pitch = 0; this.Yaw = 0; this.Roll = 0; this.Override = false; }
-            public static void SetAllGyros(List<AdvGyro> AllGyros, bool AutoOverride = true, float? NewPitch = null, float? NewYaw = null, float? NewRoll = null)
-            {
-                foreach (AdvGyro _Gyro in AllGyros)
-                {
-                    if (NewPitch.HasValue)
-                        _Gyro.Pitch = (float)NewPitch; if (NewYaw.HasValue)
-                        _Gyro.Yaw = (float)NewYaw; if (NewRoll.HasValue)
-                        _Gyro.Roll = (float)NewRoll; if (AutoOverride)
-                    {
-                        if (_Gyro.Override == false)
-                            _Gyro.Override = true;
-                    }
-                }
-            }
-            public static void FreeAllGyros(List<AdvGyro> AllGyros)
-            {
-                foreach (AdvGyro _Gyro in AllGyros)
-                {
-                    _Gyro.Free();
-                }
-            }
-
-            private void Orientate(IMyTerminalBlock ReferencePoint)
-            {
-                Vector3 V3For = Base6Directions.GetVector(ReferencePoint.Orientation.TransformDirection(Base6Directions.Direction.Forward));
-                Vector3 V3Up = Base6Directions.GetVector(ReferencePoint.Orientation.TransformDirection(Base6Directions.Direction.Up));
-                V3For.Normalize();
-                V3Up.Normalize();
-                Base6Directions.Direction B6DFor = Base6Directions.GetDirection(V3For);
-                Base6Directions.Direction B6DTop = Base6Directions.GetDirection(V3Up);
-                Base6Directions.Direction B6DLeft = Base6Directions.GetLeft(B6DTop, B6DFor);
-                Base6Directions.Direction GyroUp = Gyro.Orientation.TransformDirectionInverse(B6DTop);
-                Base6Directions.Direction GyroForward = Gyro.Orientation.TransformDirectionInverse(B6DFor);
-                Base6Directions.Direction GyroLeft = Gyro.Orientation.TransformDirectionInverse(B6DLeft);
-                switch (GyroUp)
-                {
-                    case Base6Directions.Direction.Up:
-                        strYaw = "Yaw";
-                        intYaw = 1;
-                        break;
-                    case Base6Directions.Direction.Down:
-                        strYaw = "Yaw";
-                        intYaw = -1;
-                        break;
-                    case Base6Directions.Direction.Left:
-                        strYaw = "Pitch";
-                        intYaw = 1;
-                        break;
-                    case Base6Directions.Direction.Right:
-                        strYaw = "Pitch";
-                        intYaw = -1;
-                        break;
-                    case Base6Directions.Direction.Backward:
-                        strYaw = "Roll";
-                        intYaw = 1;
-                        break;
-                    case Base6Directions.Direction.Forward:
-                        strYaw = "Roll";
-                        intYaw = -1;
-                        break;
-                }
-                switch (GyroLeft)
-                {
-                    case Base6Directions.Direction.Up:
-                        strPitch = "Yaw";
-                        intPitch = 1;
-                        break;
-                    case Base6Directions.Direction.Down:
-                        strPitch = "Yaw";
-                        intPitch = -1;
-                        break;
-                    case Base6Directions.Direction.Left:
-                        strPitch = "Pitch";
-                        intPitch = 1;
-                        break;
-                    case Base6Directions.Direction.Right:
-                        strPitch = "Pitch";
-                        intPitch = -1;
-                        break;
-                    case Base6Directions.Direction.Backward:
-                        strPitch = "Roll";
-                        intPitch = 1;
-                        break;
-                    case Base6Directions.Direction.Forward:
-                        strPitch = "Roll";
-                        intPitch = -1;
-                        break;
-                }
-                switch (GyroForward)
-                {
-                    case Base6Directions.Direction.Up:
-                        strRoll = "Yaw";
-                        intRoll = -1;
-                        break;
-                    case Base6Directions.Direction.Down:
-                        strRoll = "Yaw";
-                        intRoll = 1;
-                        break;
-                    case Base6Directions.Direction.Left:
-                        strRoll = "Pitch";
-                        intRoll = -1;
-                        break;
-                    case Base6Directions.Direction.Right:
-                        strRoll = "Pitch";
-                        intRoll = 1;
-                        break;
-                    case Base6Directions.Direction.Backward:
-                        strRoll = "Roll";
-                        intRoll = -1;
-                        break;
-                    case Base6Directions.Direction.Forward:
-                        strRoll = "Roll";
-                        intRoll = 1;
-                        break;
-                }
-            }
-        }
-        List<AdvGyroList> AdvGyroscope = new List<AdvGyroList> { };
-        bool WasPiloted;
-        public void FlyByWire(string argument, UpdateType updateSource) { }
-        public void FlyByWireSubRotine(string argument, Window _Window)
-        {
-
-            string FlyByWireText = $"The Order Fly-By-Wire System {RunningSymbol()}" +
-    $"\nGravity Generators: {gravityGeneratorsExclude.Count + gravityGeneratorsSphereExclude.Count}" +
-    $"\nImpulse Drive Generators: {gravityGenerators.Count}" +
-    $"\nImpulse Drive Masses: {virtualMasses.Count}" +
-    $"\nAdvanced Gyroscopes: {MyRawGyroscope.Count}" +
-    $"\n\n Fly-By-Wire status: " + DriveState() +
-    (PrecisionMode ? "\n Precision Mode On" : "");
-
-            switch (argument)
-            {
-                case "New": NewWindow(new Vector2(15, 0), "Fly-By-Wire Info", new Content(FlyByWireText), 450, 250); _Window = Windows.Last(); _Window.Inheritance = FlyByWireSubRotine; HighPriorityTasks.Add(new Event(FlyByWireSubRotine, "Run", _Window)); WindowBuilder(_Window); break;
-                case "Kill": Kill(_Window); break;
-                case "Run":
-                    try
-                    {
-                        _Window.Content.MyContent = FlyByWireText; ;
-
-                        Controller = GetControlledShipController(referenceList);
-
-                        if (Controller != null && Controller.IsUnderControl | isSoftShutdown)
-                        {
-                            // Travel Vector.   
-                            var travelVec = Controller.GetShipVelocities().LinearVelocity;
-                            if (travelVec.LengthSquared() > 0)
-                            {
-                                travelVec = Vector3D.Normalize(travelVec);
-                            }
-
-                            // Ship Speed.   
-                            var shipSpeed = Controller.GetShipSpeed();
-
-                            // Desired Direction Vector.   
-                            var referenceMatrix = Controller.WorldMatrix;
-                            var inputVec = Controller.MoveIndicator; // Raw input vector.   
-                            var desiredDirection = referenceMatrix.Backward * inputVec.Z + referenceMatrix.Right * inputVec.X + referenceMatrix.Up * inputVec.Y; // World relative input vector.   
-                            if (desiredDirection.LengthSquared() > 0)
-                            {
-                                desiredDirection = Vector3D.Normalize(desiredDirection);
-                            }
-                            if (!WasPiloted && !isSoftShutdown)
-                            {
-                                WasPiloted = true;
-                                isSoftShutdown = false; isHardShutdown = false;
-                            }
-
-                            if (AdvGyroscope != null && !AdvGyroscope[0].Gyros[0].Gyro.IsWorking)
-                            {
-                                AdvGyroscope[0].Gyros[0].Free();
-                                AdvGyroscope.Add(new AdvGyroList(MyRawGyroscope, Controller));
-                            }
-
-                            Vector3D WorldAngularVelocity = Controller.GetShipVelocities().AngularVelocity;
-                            MatrixD LocalOrientationMatrix = Matrix.Transpose(Controller.WorldMatrix.GetOrientation());
-
-                            Vector3D LocalAngularVelocity = Vector3D.Transform(WorldAngularVelocity, LocalOrientationMatrix) * 9.5492965964254;
-
-                            float YawInput = Controller.RotationIndicator.Y * YawSensivity - ((float)LocalAngularVelocity.Y * YawAngularInertia);
-                            float PitchInput = -Controller.RotationIndicator.X * PitchSensivity + ((float)LocalAngularVelocity.X * PitchAngularInertia);
-                            float RollInput = Controller.RollIndicator * RollSensivity * 60 - ((float)LocalAngularVelocity.Z * RollAngularInertia);
-
-                            foreach (IMyGravityGenerator Gravity in gravityGenerators)
-                                Gravity.Enabled = true;
-                            foreach (AdvGyroList Gyro in AdvGyroscope)
-                            {
-                                if (Gyro.Controller == Controller)
-                                    foreach (AdvGyro _Gyro in Gyro.Gyros)
-                                    {
-                                        if (Controller.IsUnderControl)
-                                            _Gyro.Override = true;
-                                        else _Gyro.Override = false;
-                                        _Gyro.Yaw = YawInput;
-                                        _Gyro.Pitch = PitchInput;
-                                        _Gyro.Roll = RollInput;
-                                    }
-                            }
-                            bool dampenersOn = Controller.DampenersOverride;
-
-                            ApplyThrust(travelVec, shipSpeed, desiredDirection, dampenersOn);
-                            if (isSoftShutdown && shipSpeed < dampenerPrecisionDistance)
-                            {
-                                isHardShutdown = true;
-                                isSoftShutdown = false;
-                            }
-                        }
-                        else
-                        {
-                            if (WasPiloted)
-                            {
-                                WasPiloted = false;
-                                AdvGyroscope[0].Gyros[0].Free();
-                                isSoftShutdown = true;
-                            }
-                            if (isHardShutdown)
-                            {
-
-                                ShutdownDrive();
-                            }
-                        }
-                    }
-                    catch (Exception Error) { Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Error; GenericErrorMessage("FlyByWire ErrorÇSystem has not shutdown properly\n" + Error.ToString(), null); }
-                    break;
-            }
-        }
-
-        bool isSoftShutdown = false;
-        bool isHardShutdown = false;
-        bool PrecisionMode = true;
-
-        double maxThrustDotProduct = Math.Cos(maxThrustAngle * Math.PI / 180);
-        double minDampeningDotProduct = Math.Cos(maxDampeningAngle * Math.PI / 180);
-        double fullBurnDotProduct = Math.Cos(fullBurnToleranceAngle * Math.PI / 180);
-
-        List<IMyShipController> referenceList = new List<IMyShipController>();
-        List<IMyGyro> MyRawGyroscope = new List<IMyGyro>();
-        List<IMyGravityGenerator> gravityGenerators = new List<IMyGravityGenerator>();
-        List<IMyVirtualMass> virtualMasses = new List<IMyVirtualMass>();
-
-        bool gravityGeneratorsExcludeStandby = false;
-        List<IMyGravityGenerator> gravityGeneratorsExclude = new List<IMyGravityGenerator>();
-        List<bool> gravityGeneratorsExcludeEnable = new List<bool>();
-
-        List<IMyGravityGeneratorSphere> gravityGeneratorsSphereExclude = new List<IMyGravityGeneratorSphere>();
-        List<bool> gravityGeneratorsSphereExcludeEnable = new List<bool>();
-
-        IMyShipController Controller = null;
-
-        bool FlyByWireOOBE()
-        {
-            List<IMyBlockGroup> blockGroups = new List<IMyBlockGroup>();
-            IMyBlockGroup theGroup = null;
-
-            GridTerminalSystem.GetBlockGroups(blockGroups);
-            foreach (IMyBlockGroup blockGroup in blockGroups)
-            {
-                if (blockGroup.Name.Contains(nameTag))
-                {
-                    theGroup = blockGroup;
-                }
-            }
-
-            if (theGroup == null)
-            {
-                Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + $"FlyByWireÇ[ERROR]: No group with name tag '{nameTag}' was found"; GenericErrorMessage($"FlyByWireÇ[ERROR]: No group with name tag '{nameTag}' was found", null);
-                return false;
-            }
-
-            theGroup.GetBlocksOfType(referenceList, block => block.CubeGrid == Me.CubeGrid);
-            if (referenceList.Count == 0)
-            {
-                Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + $"FlyByWireÇ[ERROR]: No remote or control seat inside group name tag '{nameTag}' was found"; GenericErrorMessage($"FlyByWireÇ[ERROR]: No remote or control seat inside group name tag '{nameTag}' was found", null);
-                return false;
-            }
-;
-            theGroup.GetBlocksOfType(MyRawGyroscope, block => block.CubeGrid == Me.CubeGrid);
-            if (MyRawGyroscope.Count == 0)
-            {
-                Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + $"FlyByWireÇ[ERROR]: No gyroscope inside group name tag '{nameTag}' was found"; GenericErrorMessage($"FlyByWireÇ[ERROR]: No gyroscope inside group name tag '{nameTag}' was found", null);
-                return false;
-            }
-            AdvGyroscope.Add(new AdvGyroList(MyRawGyroscope, referenceList[0]));
-
-            theGroup.GetBlocksOfType(gravityGenerators, block => block.CubeGrid == referenceList[0].CubeGrid);
-            if (gravityGenerators.Count == 0)
-            {
-                Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + $"FlyByWireÇ[ERROR]: No Gravity Generators inside group name tag '{nameTag}' was found"; GenericErrorMessage($"FlyByWireÇ[ERROR]: No Gravity Generators inside group name tag '{nameTag}' was found", null);
-                return false;
-            }
-
-            theGroup.GetBlocksOfType(virtualMasses, block => block.CubeGrid == referenceList[0].CubeGrid);
-            if (gravityGenerators.Count == 0)
-            {
-                Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + $"FlyByWireÇ[ERROR]: No Artificial Mass inside group name tag '{nameTag}' was found"; GenericErrorMessage($"FlyByWireÇ[ERROR]: No Artificial Mass inside group name tag '{nameTag}' was found", null);
-                return false;
-            }
-
-            GridTerminalSystem.GetBlocksOfType(gravityGeneratorsExclude, block => block.CubeGrid == referenceList[0].CubeGrid);
-            foreach (IMyGravityGenerator thisgravityGenerator in gravityGenerators)
-            {
-                gravityGeneratorsExclude.Remove(thisgravityGenerator);
-            }
-            foreach (IMyGravityGenerator thisgravityGenerator in gravityGeneratorsExclude)
-            {
-                gravityGeneratorsExcludeEnable.Add(thisgravityGenerator.Enabled);
-            }
-
-            GridTerminalSystem.GetBlocksOfType(gravityGeneratorsSphereExclude, block => block.CubeGrid == referenceList[0].CubeGrid);
-            foreach (IMyGravityGeneratorSphere thisgravityGenerator in gravityGeneratorsSphereExclude)
-            {
-                gravityGeneratorsSphereExcludeEnable.Add(thisgravityGenerator.Enabled);
-            }
-
-            return true;
-        }
-
-        IMyShipController GetControlledShipController(List<IMyShipController> SCs)
-        {
-            foreach (IMyShipController thisController in SCs)
-            {
-                if (thisController.IsUnderControl && thisController.CanControlShip)
-                    return thisController;
-            }
-
-            return SCs[0];
-        }
-
-        void ShutdownDrive()
-        {
-            foreach (IMyGravityGenerator thisGravityGenerator in gravityGenerators)
-            {
-                thisGravityGenerator.ApplyAction("OnOff_Off");
-            }
-
-            foreach (IMyVirtualMass thisVirtualMass in virtualMasses)
-            {
-                thisVirtualMass.ApplyAction("OnOff_Off");
-            }
-
-            foreach (IMyGravityGenerator thisgravityGenerator in gravityGeneratorsExclude)
-            {
-                thisgravityGenerator.ApplyAction("OnOff_On");
-            }
-        }
-        void ApplyThrust(Vector3D travelVec, double speed, Vector3D desiredDirectionVec, bool dampenersOn)
-        {
-            bool isActive = false;
-
-            /// Fly-By-Wire Gravity Generator ///   
-            foreach (IMyGravityGenerator thisGravityGenerator in gravityGenerators)
-            {
-                var thrustDirection = thisGravityGenerator.WorldMatrix.Up; //gets the direction that the thruster flame fires   
-                float scale = -(float)thrustDirection.Dot(desiredDirectionVec); //projection of the thruster's direction onto the desired direction    
-
-                if (scale >= maxThrustDotProduct)
-                {
-                    scale /= (float)fullBurnDotProduct; //scales it so that the thruster output ramps down after the fullBurnToleranceAngle is exceeded    
-
-                    var velocityInThrustDirection = thrustDirection.Dot(travelVec) * speed;
-                    double targetOverride = 0;
-
-                    if (velocityInThrustDirection < 1)
-                        targetOverride = velocityInThrustDirection * dampenerScalingFactor;
-                    else
-                        targetOverride = velocityInThrustDirection * Math.Abs(velocityInThrustDirection) * dampenerScalingFactor;
-
-                    SetGravityGeneratorOverride(thisGravityGenerator, (float)Math.Max(scale * 100f, targetOverride));
-                    isActive = true;
-                    continue;
-                }
-
-                thrustDirection = thisGravityGenerator.WorldMatrix.Down; //gets the direction that the thruster flame fires    
-                scale = -(float)thrustDirection.Dot(desiredDirectionVec); //projection of the thrust's direction onto the desired direction    
-
-                if (scale >= maxThrustDotProduct)
-                {
-                    scale /= (float)fullBurnDotProduct; //scales it so that the thruster output ramps down after the fullBurnToleranceAngle is exceeded    
-
-                    var velocityInThrustDirection = thrustDirection.Dot(travelVec) * speed;
-                    double targetOverride = 0;
-
-                    if (velocityInThrustDirection < 1)
-                        targetOverride = velocityInThrustDirection * dampenerScalingFactor;
-                    else
-                        targetOverride = velocityInThrustDirection * Math.Abs(velocityInThrustDirection) * dampenerScalingFactor;
-
-                    SetGravityGeneratorOverride(thisGravityGenerator, -(float)Math.Max(scale * 100f, targetOverride));
-                    isActive = true;
-                    continue;
-                }
-
-                /// Dampeners ///   
-                if (dampenersOn && (!PrecisionMode || (PrecisionMode && (speed > dampenerPrecisionDistance))))
-                {
-                    thrustDirection = thisGravityGenerator.WorldMatrix.Up; //gets the direction that the thruster flame fires    
-                    scale = -(float)thrustDirection.Dot(travelVec); //projection of the thrust's direction onto the desired direction    
-
-                    if ((scale >= maxThrustDotProduct) && (thrustDirection.Dot(desiredDirectionVec) <= minDampeningDotProduct))
-                    {
-                        var velocityInThrustDirection = thrustDirection.Dot(travelVec) * speed;
-                        double targetOverride = 0;
-
-                        if (velocityInThrustDirection < 1)
-                            targetOverride = velocityInThrustDirection * dampenerScalingFactor;
-                        else
-                            targetOverride = velocityInThrustDirection * velocityInThrustDirection * dampenerScalingFactor;
-
-                        SetGravityGeneratorOverride(thisGravityGenerator, (float)targetOverride);
-                        isActive = true;
-                        continue;
-                    }
-
-                    thrustDirection = thisGravityGenerator.WorldMatrix.Down; //gets the direction that the thruster flame fires    
-                    scale = -(float)thrustDirection.Dot(travelVec); //projection of the thrust's direction onto the desired direction    
-
-                    if ((scale >= maxThrustDotProduct) && (thrustDirection.Dot(desiredDirectionVec) <= minDampeningDotProduct))
-                    {
-                        var velocityInThrustDirection = thrustDirection.Dot(travelVec) * speed;
-                        double targetOverride = 0;
-
-                        if (velocityInThrustDirection < 1)
-                            targetOverride = velocityInThrustDirection * dampenerScalingFactor;
-                        else
-                            targetOverride = velocityInThrustDirection * velocityInThrustDirection * dampenerScalingFactor;
-
-                        SetGravityGeneratorOverride(thisGravityGenerator, -(float)targetOverride);
-                        isActive = true;
-                        continue;
-                    }
-                }
-
-                SetGravityGeneratorOverride(thisGravityGenerator, 0);
-            }
-            if (isActive)
-            {
-                for (int i = 0; i < gravityGeneratorsExclude.Count && !gravityGeneratorsExcludeStandby; ++i)
-                {
-                    gravityGeneratorsExcludeEnable[i] = gravityGeneratorsExclude[i].Enabled;
-                }
-                for (int i = 0; i < gravityGeneratorsSphereExclude.Count && !gravityGeneratorsExcludeStandby; ++i)
-                {
-                    gravityGeneratorsSphereExcludeEnable[i] = gravityGeneratorsSphereExclude[i].Enabled;
-                }
-                foreach (IMyGravityGeneratorSphere thisGravityGenerator in gravityGeneratorsSphereExclude)
-                {
-                    thisGravityGenerator.ApplyAction("OnOff_Off");
-                }
-
-                gravityGeneratorsExcludeStandby = true;
-            }
-            else
-            {
-                for (int i = 0; i < gravityGeneratorsExclude.Count && gravityGeneratorsExcludeStandby; ++i)
-                {
-                    gravityGeneratorsExclude[i].ApplyAction((gravityGeneratorsExcludeEnable[i]) ? "OnOff_On" : "OnOff_Off");
-                }
-                for (int i = 0; i < gravityGeneratorsSphereExclude.Count && gravityGeneratorsExcludeStandby; ++i)
-                {
-                    gravityGeneratorsSphereExclude[i].ApplyAction((gravityGeneratorsSphereExcludeEnable[i]) ? "OnOff_On" : "OnOff_Off");
-                }
-
-                gravityGeneratorsExcludeStandby = false;
-            }
-            if (isActive)
-            {
-                foreach (IMyVirtualMass thisVirtualMass in virtualMasses)
-                {
-                    thisVirtualMass.ApplyAction("OnOff_On");
-                }
-            }
-            else
-            {
-                foreach (IMyVirtualMass thisVirtualMass in virtualMasses)
-                {
-                    thisVirtualMass.ApplyAction("OnOff_Off");
-                }
-            }
-        }
-
-        void SetGravityGeneratorOverride(IMyGravityGenerator gravityGenerator, float overrideValue)
-        {
-            gravityGenerator.SetValue<Single>("Gravity", overrideValue);
-        }
-        string DriveState()
-        {
-            string strDriveState;
-
-            if (isHardShutdown)
-                strDriveState = "Shutdown. ";
-            else if (isSoftShutdown)
-                strDriveState = "Shuting Down... ";
-            else
-                strDriveState = "Running... ";
-            return strDriveState;
-
-        }
-        int runningSymbolVariant = 0;
-        string RunningSymbol()
-        {
-            runningSymbolVariant++;
-            string strRunningSymbol = "";
-
-            if (runningSymbolVariant == 0)
-                strRunningSymbol = "|";
-            else if (runningSymbolVariant == 1)
-                strRunningSymbol = "/";
-            else if (runningSymbolVariant == 2)
-                strRunningSymbol = "--";
-            else if (runningSymbolVariant == 3)
-            {
-                strRunningSymbol = "\\";
-                runningSymbolVariant = 0;
-            }
-
-            return strRunningSymbol;
-        }
-
-        #endregion
-
-        #region Display
-
-
-        public List<IMyTerminalBlock> DisplayManaged;
-        public void DisplayManagmentSetup()
-        {
-
-            DisplayManaged = new List<IMyTerminalBlock> { };
-            foreach (IMyTerminalBlock block in blocks)
-            {
-                if (block.CustomData.Contains("[Sprite Builder Display Script - Text Surface Config - Screen "))
-                {
-                    DisplayManaged.Add(block);
-                }
-            }
-        }
-
-        public void DisplayManagment(string argument, Window _Window)
-        {
-
-            foreach (IMyTerminalBlock _Block in DisplayManaged)
-            {
-                MyIni _CanvasIni = new MyIni { };
-                MyIniParseResult result;
-                if (!_CanvasIni.TryParse(_Block.CustomData, out result))
-                {
-                    Echo($"CustomData error:\nLine {result}");
-                }
-
-                DisplayManagmentDraw(_CanvasIni, _Block);
-            }
-        }
-        public void DisplayManagmentDraw(MyIni _CanvasIni, IMyTerminalBlock _Block)
-        {
-            IMyTextSurface _MySurface = ((IMyTextSurfaceProvider)_Block).GetSurface(0);
             List<string> DisplayList = new List<string> { };
-            _CanvasIni.GetSections(DisplayList);
-            Me.CustomData = DisplayList[0];
+
+
+            _ini.GetSections(DisplayList);
             foreach (string Line in DisplayList)
                 if (Line.StartsWith("Sprite Builder Display Script - Text Surface Config"))
                 {
-                    _MySurface = ((IMyTextSurfaceProvider)_Block).GetSurface(int.Parse(Line.Replace("Sprite Builder Display Script - Text Surface Config - Screen ", "")));
-                    _MySurface.ContentType = ContentType.SCRIPT;
-                    _MySurface.Script = "";
-                    _MySurface.ScriptBackgroundColor = ParseColor(_CanvasIni.Get(Line, "Background color").ToString());
-                    float Scale = float.Parse(_CanvasIni.Get(Line, "Sprite scale").ToString());
-                    MySpriteDrawFrame DisplayFrame = _MySurface.DrawFrame();
-                    string[] SpritesList = _CanvasIni.Get(Line, "Sprite list").ToString().Split('\n');
+                    _Frame.Sprites.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", _Frame.ContentCanvas.Position + (_Frame.ContentCanvas.Size / 2), _Frame.ContentCanvas.Size, CanvasColor));
+                    string[] SpritesList = _ini.Get(Line, "Sprite list").ToString().Split('\n');
+
                     foreach (string Sprite in SpritesList)
                     {
-                        Me.CustomData = Me.CustomData + "+" + Sprite;
                         try
                         {
-                            if (_CanvasIni.ContainsSection($"Sprite:{Sprite}"))
+                            string Prefix = null;
+                            string Data = null;
+                            string Position = null;
+                            string Size = null;
+                            string Color = null;
+                            string Font = null;
+                            string Rotation = null;
+
+                            if (_ini.ContainsSection($"S:{Sprite}")) { Prefix = "S"; Data = "D"; Position = "P"; Size = "S"; Color = "C"; Rotation = "R"; }
+                            else if (_ini.ContainsSection($"T:{Sprite}")) { Prefix = "T"; Data = "D"; Position = "P"; Font = "F"; Color = "C"; Rotation = "S"; }
+                            else if (_ini.ContainsSection($"Sprite:{Sprite}")) { Prefix = "Sprite"; Data = "Type"; Position = "Position"; Size = "Size"; Color = "Color"; Rotation = "Rotation"; }
+                            else if (_ini.ContainsSection($"Text:{Sprite}")) { Prefix = "Text"; Data = "Text"; Position = "Position"; Font = "Font"; Color = "Color"; Rotation = "Scale"; }
+
+                            if (Prefix != null)
                             {
-                                DisplayFrame.Add(new MySprite(
-                                SpriteType.TEXTURE,
-                                _CanvasIni.Get($"Sprite:{Sprite}", "Type").ToString(),
-                                ParsePosAndSize(_CanvasIni.Get($"Sprite:{Sprite}", "Position").ToString()) * Scale + (_MySurface.TextureSize / 2),
-                                ParsePosAndSize(_CanvasIni.Get($"Sprite:{Sprite}", "Size").ToString())*Scale,
-                                ParseColor(_CanvasIni.Get($"Sprite:{Sprite}", "Color").ToString()),
-                                null,
-                                TextAlignment.CENTER,
-                                float.Parse(_CanvasIni.Get($"Sprite:{Sprite}", "Rotation").ToString())));
-                                Me.CustomData = Me.CustomData + "\n Done";
-                            }
-                            else if (_CanvasIni.ContainsSection($"Text:{Sprite}"))
-                            {
-                                DisplayFrame.Add(new MySprite(
-                                SpriteType.TEXT,
-                                StringProcessament(_CanvasIni.Get($"Text:{Sprite}", "Text").ToString(), _Block),
-                                ParsePosAndSize(_CanvasIni.Get($"Text:{Sprite}", "Position").ToString()) * Scale + (_MySurface.TextureSize / 2),
-                                null,
-                                ParseColor(_CanvasIni.Get($"Text:{Sprite}", "Color").ToString()),
-                                _CanvasIni.Get($"Text:{Sprite}", "Font").ToString(),
-                                TextAlignment.LEFT,
-                                float.Parse(_CanvasIni.Get($"Text:{Sprite}", "Scale").ToString()) * Scale));
-                                Me.CustomData = Me.CustomData + "\n Done";
-                            }
+                                _Frame.Sprites.Add(new MySprite(
+                                            (Prefix == "T" | Prefix == "Text") ? SpriteType.TEXT : SpriteType.TEXTURE,
+                                            (Prefix == "T" | Prefix == "Text") ? _ini.Get($"{Prefix}:{Sprite}", Data).ToString() : _ini.Get($"{Prefix}:{Sprite}", Data).ToString(),
+                                            ParsePosAndSize(_ini.Get($"{Prefix}:{Sprite}", Position).ToString()) * Scale + _Frame.ContentCanvas.Position + (_Frame.ContentCanvas.Size / 2),
+                                            (Prefix == "T" | Prefix == "Text") ? new Vector2() : ParsePosAndSize(_ini.Get($"{Prefix}:{Sprite}", Size).ToString()) * Scale,
+                                            ParseColor(_ini.Get($"{Prefix}:{Sprite}", Color).ToString()),
+                                            (Prefix == "T" | Prefix == "Text") ? _ini.Get($"{Prefix}:{Sprite}", Font).ToString() : null,
+                                            (Prefix == "T" | Prefix == "Text") ? TextAlignment.LEFT : TextAlignment.CENTER,
+                                            float.Parse(_ini.Get($"{Prefix}:{Sprite}", Rotation).ToString())
+                                            ));
+                            };
                         }
-                        catch { }
+                        catch (Exception Error) { Log(Error.ToString()); }
                     }
-                    DisplayFrame.Dispose();
                 }
-
-
-
         }
         public Vector2 ParsePosAndSize(string Vector)
         {
             try
             {
-                Me.CustomData = Me.CustomData + Vector;
                 string VectorPreParse = Vector.Replace("{X:", "").Replace(" Y:", ",").Replace("}", "");
                 string[] Values = VectorPreParse.Split(',');
                 return new Vector2(float.Parse(Values[0]), float.Parse(Values[1]));
             }
-            catch (Exception Error) { Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Vector + "\n" + Error; GenericErrorMessage("ParsePosAndSize ErrorÇFailure to Parse Vector\n" + $"{Vector} \n {Error}", null); return new Vector2 { }; }
+            catch (Exception Error) { Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Vector + "\n" + Error; return new Vector2 { }; }
         }
         public Color ParseColor(string Vector)
         {
             try
             {
-                Me.CustomData = Me.CustomData + Vector;
                 if (Vector.Contains("Theme")) return Theme;
-                else if (Vector.Contains("Background")) return BackgroundColor;
+                else if (Vector.Contains("Background")) return CanvasColor;
                 else
                 {
                     string VectorPreParse = Vector.Replace(" ", "");
@@ -1714,21 +1159,11 @@ namespace IngameScript
             }
             catch (Exception Error)
             {
-                Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Vector + "\n" + Error; GenericErrorMessage("ParseColor ErrorÇFailure to Parse Vector\n" + $"{Vector} \n {Error}", null); return new Vector4 { };
+                Me.CustomData = Me.CustomData + "\n\n<" + DateTime.Now + ">" + Vector + "\n" + Error; return new Vector4 { };
             }
         }
-        public String StringProcessament(string _String, IMyTerminalBlock _Block)
-        {
-
-            _String = _String.Replace("{Status}", _Block.IsWorking ? "Active" : "Inactive");
-            _String = _String.Replace("{ID}", _Block.EntityId.ToString());
-            return _String;
-        }
-
-
-
-
         #endregion
+
         #endregion
     }
 }
