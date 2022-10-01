@@ -1,0 +1,14 @@
+﻿README
+
+Put "[T.OS:(Unique Name)]" in a Screen, some Tool (Welder, Grinder or Drill) and Some kind of Ship Controller 
+If you want to use more Screens, put ONLY on the Top Left One, Run the Script, and set te ammout of Rows and Cols on the screen Custom Data
+(Tip, you can use Wide screens and Rotate in the screen Terminal to get better Resolution with less screens)
+
+You can Customize your Faction logo and Color Scheme bellow;
+
+
+Current Commands:
+NEW:DIAG
+NEW:MATH
+NEW:MEDIA
+NEW:DEBUG
