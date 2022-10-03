@@ -10,7 +10,7 @@ namespace IngameScript
             public String Time;
             public TimeAgo(DateTime Reference)
             {
-                string R = string.Empty;
+                string R;
                 var T = DateTime.Now.Subtract(Reference);
                 if (T <= TimeSpan.FromSeconds(60))
                 {

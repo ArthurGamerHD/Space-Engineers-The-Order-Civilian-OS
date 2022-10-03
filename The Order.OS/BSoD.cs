@@ -17,7 +17,7 @@ namespace IngameScript
             float scale = 1;
             Vector2 centerPos = new Vector2();
             MultiScreenSpriteSurface frame;
-            public BSoD(Workstation Workstation)
+            public BSoD(Workstation Workstation, Exception Error)
             {
                 var UWide = Workstation.Screen.TextureSize.X >= 2 * Workstation.Screen.TextureSize.Y;
                 var Wide = Workstation.Screen.TextureSize.X > Workstation.Screen.TextureSize.Y;
@@ -26,11 +26,11 @@ namespace IngameScript
                 var B = Color.Blue;
                 frame = Workstation.Screen;
                 S(0f, 0f, Workstation.Screen.TextureSize.X, Workstation.Screen.TextureSize.Y, B);
-                var text = $"Your Station ran into a problem{(Wide ? " " : "\n")}and needs to Restart.\nRun the Programable Block with\nthis argument: RESTART {{StationID}}";
+                var text = $"Your Station ran into a problem{(Wide ? " " : "\n")}and needs to Restart.\nRun the Programable Block with\nthis argument: RESTART [{Workstation.Controller.CustomName.Split('[')[1]}";
                 frame.Add(new MySprite(SpriteType.TEXT, text, new Vector2(5, 75)* scale, null, new Color(255, 255, 255, 255), "DEBUG", TextAlignment.LEFT, 1f*scale));
                 text = $"For more information about this issue, visit \nhttps://docs.microsoft.com/dotnet/csharp/language-refere{(Wide ? "" : "\n")}nce/language-specification/exceptions \nOr Read this QR code";
                 frame.Add(new MySprite(SpriteType.TEXT, text, new Vector2(120, 270)*scale, null, new Color(255, 255, 255, 255), "DEBUG", TextAlignment.LEFT, .5f* scale));
-                text = $"If you call a support person,{(Wide ? " " : "\n")}give them this info:\nException code: {{Exeption}}";
+                text = $"If you call a support person,{(Wide ? " " : "\n")}give them this info:\nException code:\n {Error}";
                 frame.Add(new MySprite(SpriteType.TEXT, text, new Vector2(120, Wide ? 320 : 330) * scale, null, new Color(255, 255, 255, 255), "DEBUG", TextAlignment.LEFT, .5f * scale));
                 var QR = new RectangleF(10*scale, 270 * scale, 100 * scale, 100 * scale);
                 centerPos = QR.Center;

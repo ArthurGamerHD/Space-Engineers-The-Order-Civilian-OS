@@ -52,7 +52,7 @@ namespace IngameScript
                 clock++;
                 if (clock == 10)
                 {
-                    if (Standby + 300000000 > DateTime.Now.Ticks)
+                    if (Standby + 3600000000 > DateTime.Now.Ticks)
                     {
                         if (ViewPort.Width != Screen.SurfaceSize.X || ViewPort.Height != Screen.SurfaceSize.Y)
                         {
@@ -72,23 +72,21 @@ namespace IngameScript
                     }
                     else
                     {
+                        var S70 = 70 * Scale;
                         var S50 = 50 * Scale;
                         var S7 = 7 * Scale;
                         var S5 = 5 * Scale;
                         if (Xp == 0) Xp = S7;
                         if (Yp == 0) Yp = S5;
                         X += Xp;
-                        if (X + S50 > ViewPort.Width | X - S50 < ViewPort.X | Y + S50 > ViewPort.Height | Y - S50 < ViewPort.Y)
+                        if (X + S50 > ViewPort.Width | X - S50 < ViewPort.X | Y + S70 > ViewPort.Height | Y - S70 < ViewPort.Y)
                             MyColor = new Color(rnd.Next(0, 255), rnd.Next(0, 255), rnd.Next(0, 255));
                         Xp = (X + S50 > ViewPort.Width) ? -S7 : (X - S50 < ViewPort.X) ? S7 : Xp;
                         Y += Yp;
-                        Yp = (Y + S50 > ViewPort.Height) ? -S5 : (Y - S50 < ViewPort.Y) ? S5 : Yp;
+                        Yp = (Y + S70 > ViewPort.Height) ? -S5 : (Y - S70 < ViewPort.Y) ? S5 : Yp;
                         var centerPos = new Vector2(X, Y);
-                        Screen.Add(new MySprite(SpriteType.TEXT, "V", new Vector2(-18f, -44f) * Scale + centerPos, null, MyColor, "DEBUG", TextAlignment.LEFT, 2.2f * Scale));
-                        Screen.Add(new MySprite(SpriteType.TEXT, "D", new Vector2(-42f, -44f) * Scale + centerPos, null, MyColor, "DEBUG", TextAlignment.LEFT, 2f * Scale));
-                        Screen.Add(new MySprite(SpriteType.TEXT, "D", new Vector2(12f, -44f) * Scale + centerPos, null, MyColor, "DEBUG", TextAlignment.LEFT, 2f * Scale));
-                        Screen.Add(new MySprite(SpriteType.TEXTURE, "Circle", new Vector2(0f, 23f) * Scale + centerPos, new Vector2(100f, 20f) * Scale, MyColor, null, TextAlignment.CENTER, 0f));
-                        Screen.Add(new MySprite(SpriteType.TEXT, "Video", new Vector2(-26f, 09f) * Scale + centerPos, null, new Color(0, 0, 0, 255), "DEBUG", TextAlignment.LEFT, 0.8f * Scale));
+                        Screen.Add(new MySprite(SpriteType.TEXTURE, MyMetaData.FactionIcon, new Vector2(0f, -34f) * Scale + centerPos, new Vector2(100, 100), MyColor, "DEBUG", TextAlignment.CENTER, 2f * Scale));
+                        Screen.Add(new MySprite(SpriteType.TEXT, "The Order OS", new Vector2(0f, 09f) * Scale + centerPos, null, MyColor, "DEBUG", TextAlignment.CENTER, 0.8f * Scale));
 
                     }
                     Screen.Draw();
@@ -129,7 +127,7 @@ namespace IngameScript
                 if (_Cursor.X < 0) _Cursor.X = (int)ViewPort.X - 1; if (_Cursor.Y < 0) _Cursor.Y = (int)ViewPort.Y - 1;
 
                 if (CursorStatus < 4)
-                    CursorStatus = (!Tool.IsActivated && CursorStatus == 1) ? 3 : /*(Tool.IsActivated && CursorStatus == 1) ? 2 :*/ (Tool.IsActivated) ? 1 : 0;
+                    CursorStatus = (!Tool.IsActivated && CursorStatus == 1) ? 2 : (Tool.IsActivated) ? 1 : 0;
                 {
                     if (Windows.Count() != 0)
                     {

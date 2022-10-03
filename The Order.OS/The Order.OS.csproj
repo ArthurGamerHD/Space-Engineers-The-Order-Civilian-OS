@@ -40,7 +40,6 @@
   <ItemGroup>
     <Compile Include="BSoD.cs" />
     <Compile Include="Button Handler.cs" />
-    <Compile Include="Example.cs" />
     <Compile Include="MediaPlayer.cs" />
     <Compile Include="MathVisualizer.cs" />
     <Compile Include="Debug.cs" />
@@ -52,11 +51,14 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </AdditionalFiles>
     <Compile Include="Nav.cs" />
+    <Compile Include="Decoder.cs" />
+    <Compile Include="Network.cs" />
     <Compile Include="Program.cs" />
     <AdditionalFiles Include="Instructions.readme" />
     <AdditionalFiles Include="thumb.png" />
     <AdditionalFiles Include="MDK\whitelist.cache" />
     <Compile Include="Render.cs" />
+    <Compile Include="Pong.cs" />
     <Compile Include="ShipDiagnostic.cs" />
     <Compile Include="TimeConverter.cs" />
     <Compile Include="Workstation.cs" />

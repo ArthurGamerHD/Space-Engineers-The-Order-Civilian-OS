@@ -125,7 +125,7 @@ namespace IngameScript
                             {
                                 float sin = (float)Math.Sin(rotationF);
                                 float cos = (float)Math.Cos(rotationF);
-                                frame.Add(new MySprite(S.Type, S.Data, (S.Type == SpriteType.TEXT) ? S.Position * Z + DrawArea.Center : new Vector2(cos * S.Position.Value.X - sin * S.Position.Value.Y, sin * S.Position.Value.X + cos * S.Position.Value.Y) * (Z * zoom) + DrawArea.Center, (S.Size != null) ? S.Size * (Z * zoom) : null, S.Color, S.FontId, S.Alignment, (S.Type == SpriteType.TEXT) ? S.RotationOrScale * Z : rotationF));
+                                frame.Add(new MySprite(S.Type, S.Data, (S.Type == SpriteType.TEXT) ? S.Position * Z + DrawArea.Center : new Vector2(cos * S.Position.Value.X - sin * S.Position.Value.Y, sin * S.Position.Value.X + cos * S.Position.Value.Y) * (Z * zoom) + DrawArea.Center, (S.Size != null) ? S.Size * (Z * zoom) : null, S.Color, S.FontId, S.Alignment, (S.Type == SpriteType.TEXT) ? S.RotationOrScale * Z : (S.Data == "SquareSimple" || S.Data == "SquareHollow") ? rotationF : S.RotationOrScale));
                             }
                             SmallButton(260f, 120f, BZS);
                             SmallButton(260f, 150f, BZP);
@@ -241,7 +241,7 @@ namespace IngameScript
                 {
                     LoL[i] = new List<SpriteListData>(new SpriteListData[6]);
                 }
-                foreach (IMyTerminalBlock Block in Blocks) { if (Sensors == null) Sensors = new List<IMyTerminalBlock>(); if (Block is IMySensorBlock|| Block is IMyTurretControlBlock || Block is IMyLargeTurretBase) Sensors.Add(Block); }
+                foreach (IMyTerminalBlock Block in Blocks) { if (Sensors == null) Sensors = new List<IMyTerminalBlock>(); if (Block is IMySensorBlock || Block is IMyTurretControlBlock || Block is IMyLargeTurretBase) Sensors.Add(Block); }
             }
             public List<MySprite> Get(Window Window)
             {
@@ -258,8 +258,7 @@ namespace IngameScript
                             {
                                 if (LoL[i][I] != null && ((List<bool>)Window.Configs[15])[i]) foreach (MySprite Sprite in LoL[i][I].Sprites) SpriteList.Add(Sprite);
                             }
-                            if (Sensors.Count > 0)
-                                foreach (MySprite Sprite in MyShipDiagnostic.Sensor(I, Sensors)) SpriteList.Add(Sprite);
+                            foreach (MySprite Sprite in MyShipDiagnostic.Sensor(I, Sensors)) SpriteList.Add(Sprite);
                             SpriteList.Add(new MySprite(SpriteType.TEXT, $"Last Update: {new TimeAgo(LoL[0][I].Time).Time}", new Vector2(0, 140f), null, Color.White, "Monospace", TextAlignment.CENTER, .4f));
                         }
                         else
@@ -490,16 +489,15 @@ namespace IngameScript
                         Sprites[22].Add(Sprite);
                     if (i % 60 == 0) yield return true;
                 }
-                Sprites[0].Add(new MySprite(SpriteType.TEXT, $"Ship diagnostic V1.5\nSprite Count:{Sprites[0].Count}\n{DiagStatus}", new Vector2(-310f, -150f), null, Color.White, "Monospace", TextAlignment.LEFT, .4f));
                 yield return true;
             }
+            int terminal_healthy, DiagSystems;
             public IEnumerable<bool> RunDiag(int R)
             {
                 Sprites = new List<List<MySprite>>(new List<MySprite>[23]);
                 Stat++;
                 foreach (bool val in CheckGrid(true))
                     yield return val;
-                int terminal_healthy = 0;
                 Stat++;
                 int Count = 0;
                 for (int i = 0; i < TerminalBlocks.Count; ++i)
@@ -517,9 +515,8 @@ namespace IngameScript
                         yield return true;
                     }
                 }
+                DiagSystems = TerminalBlocks.Count > 0 ? terminal_healthy * 100 / TerminalBlocks.Count : 100;
                 Stat++;
-                int DiagSystems = TerminalBlocks.Count > 0 ? terminal_healthy * 100 / TerminalBlocks.Count : 100;
-                DiagStatus = string.Format($"Hull Integrity:{DiagHull:0}%\nSystems Integrity: {DiagSystems:0}%");
                 Rotation Rotate = Bit[R];
                 foreach (bool val in Draw(Rotate))
                     yield return val;
@@ -528,18 +525,31 @@ namespace IngameScript
             public List<MySprite> Sensor(int R, List<IMyTerminalBlock> SensorList)
             {
                 List<MySprite> sprites = new List<MySprite>();
-                Rotation Rotate = Bit[R];
-                Vector3I _Scale = Grid_Max - Grid_Min;
-                Vector3I _SpriteSize = Rotate(Grid_Max - Grid_Min, _Scale * 2);
-
-                float _ScaleF = Math.Min(_Canvas.Width, _Canvas.Height) / Math.Max(_SpriteSize.X, _SpriteSize.Y);
-                float _OffsetX = (_Canvas.Width - _SpriteSize.X * _ScaleF) * 0.5f + _Canvas.X;
-                float _OffsetY = (_Canvas.Height - _SpriteSize.Y * _ScaleF) * 0.5f + _Canvas.Y;
-
-                List<MyDetectedEntityInfo> entities = new List<MyDetectedEntityInfo>();
-                foreach (IMyTerminalBlock Sensor in SensorList)
+                try
                 {
-                    ((IMySensorBlock)Sensor).DetectedEntities(entities);
+                    Rotation Rotate = Bit[R];
+                    Vector3I _Scale = Grid_Max - Grid_Min;
+                    Vector3I _SpriteSize = Rotate(Grid_Max - Grid_Min, _Scale * 2);
+
+                    float _ScaleF = Math.Min(_Canvas.Width, _Canvas.Height) / Math.Max(_SpriteSize.X, _SpriteSize.Y);
+                    float _OffsetX = (_Canvas.Width - _SpriteSize.X * _ScaleF) * 0.5f + _Canvas.X;
+                    float _OffsetY = (_Canvas.Height - _SpriteSize.Y * _ScaleF) * 0.5f + _Canvas.Y;
+
+                    List<MyDetectedEntityInfo> entities = new List<MyDetectedEntityInfo>();
+                    foreach (IMyTerminalBlock Sensor in SensorList)
+                    {
+                        List<MyDetectedEntityInfo> SensorEntity = new List<MyDetectedEntityInfo>();
+                        if (Sensor is IMySensorBlock)
+                        {
+                            ((IMySensorBlock)Sensor).DetectedEntities(SensorEntity);
+                            foreach (MyDetectedEntityInfo entity in SensorEntity)
+                            { entities.Add(entity); }
+                        }
+                        if (Sensor is IMyTurretControlBlock)
+                            entities.Add(((IMyTurretControlBlock)Sensor).GetTargetedEntity());
+                        if (Sensor is IMyLargeTurretBase)
+                            entities.Add(((IMyLargeTurretBase)Sensor).GetTargetedEntity());
+                    }
                     foreach (MyDetectedEntityInfo entity in entities)
                     {
                         var EntityPos = Grid.WorldToGridInteger(entity.Position);
@@ -551,6 +561,11 @@ namespace IngameScript
                             (entity.Type == MyDetectedEntityType.CharacterHuman || entity.Type == MyDetectedEntityType.CharacterOther) ? new Vector2(_ScaleF, _ScaleF) : new Vector2(2 * _ScaleF, 2 * _ScaleF),
                             entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Owner ? Color.Cyan : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Neutral ? Color.Yellow : entity.Relationship == MyRelationsBetweenPlayerAndBlock.FactionShare || entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : Color.Red));
                     }
+                    DiagStatus = string.Format($"Hull Integrity:{DiagHull:0}%\nSystems Integrity: {DiagSystems:0}%\nSensor Count: {SensorList.Count()}\nTracking {entities.Count()} Entities");
+                    sprites.Add(new MySprite(SpriteType.TEXT, $"Ship diagnostic V1.5\nSprite Count:{Sprites[0].Count}\n{DiagStatus}", new Vector2(-310f, -150f), null, Color.White, "Monospace", TextAlignment.LEFT, .4f));
+                }
+                catch {
+                    sprites.Add(new MySprite(SpriteType.TEXT, $"ERROR: Sensor Malfunction", new Vector2(-310f, -150f), null, Color.Red, "Monospace", TextAlignment.LEFT, .4f));
                 }
                 return sprites;
             }

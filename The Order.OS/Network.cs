@@ -22,32 +22,24 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        public class Button
+        void NetworkUpdate(UpdateType UpdateSource, string Argument)
         {
-            public Rectangle Hitbox;
-            public Action Clicked;
-            public Action Hover;
-            public Action Click;
-            public Button(int x, int y, int w, int h, Action MyAction, Action MyClick = null, Action MyHover = null)
+            if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxB")
             {
-                Hitbox = new Rectangle(x, y, w, h);
-                Clicked = MyAction;
-                Click = MyClick;
-                Hover = MyHover;
+                while (RxB.HasPendingMessage)
+                {
+                    MyIGCMessage iGCMessage = RxB.AcceptMessage();
+                    var data = iGCMessage.Data;
+                }
             }
-            public void OnClick()
+            if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxU")
             {
-                Click?.Invoke();
-            }
-            public void OnClicked()
-            {
-                Clicked?.Invoke();
-            }
-            public void OnHover()
-            {
-                Hover?.Invoke();
+                while (RxB.HasPendingMessage)
+                {
+                    MyIGCMessage iGCMessage = RxU.AcceptMessage();
+                    var data = iGCMessage.Data;
+                }
             }
         }
     }
-
 }

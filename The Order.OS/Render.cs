@@ -61,7 +61,6 @@ namespace IngameScript
             public readonly IMyCubeBlock CubeBlock;
             public readonly IMyTextSurface Surface;
             public MySpriteDrawFrame? Frame = null;
-            readonly List<MySprite> _sprites = new List<MySprite>(64);
 
             public void Add(MySprite sprite)
             {
@@ -122,8 +121,6 @@ namespace IngameScript
                 }
             }
         }
-
-        // Assumes that all text panels are the same size
         public class MultiScreenSpriteSurface : ISpriteSurface
         {
             public bool Initialized { get; private set; } = false;
@@ -200,7 +197,6 @@ namespace IngameScript
             public readonly int Cols;
 
             public Color ScriptBackgroundColor { get; set; } = new MetaData().BackgroundColor;
-            StringBuilder _stringBuilder = new StringBuilder(128);
             public IMyTextPanel _anchor;
             ITerminalProperty<float> _rotationProp;
             float _rotationAngle = 0f;

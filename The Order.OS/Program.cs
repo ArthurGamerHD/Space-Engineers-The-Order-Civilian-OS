@@ -22,9 +22,9 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
+        #region mdk preserve
         public class MetaData
         {
-            
             public MetaData()
             {
                 Theme = new Color(9, 98, 166, 255);
@@ -39,6 +39,11 @@ namespace IngameScript
             public Color FactionColor { get; }
             public string FactionIcon { get; }
         }
+
+
+        //-------------- DO NOT TOUCH BELLOW THIS LINE --------------\\
+
+        #endregion
         #region LocalStorage
 
         List<IMyTerminalBlock> Blocks = new List<IMyTerminalBlock> { };
@@ -53,6 +58,21 @@ namespace IngameScript
 
         #endregion
         #region Ultilities
+
+        public class Vector2Point
+        {
+            public Vector2 Vector { get; }
+            public Point Point { get; }
+            public Vector2Point(Point P)
+            {
+                Vector = new Vector2(P.X, P.Y);
+            }
+            public Vector2Point(Vector2 P)
+            {
+                Point = new Point((int)P.X, (int)P.Y);
+            }
+        }
+
         #endregion
 
         public Program()
@@ -101,10 +121,8 @@ namespace IngameScript
                                     if (Block is IMyShipToolBase) { Station.Tool = (IMyShipToolBase)Block; }
                                 }
                                 MyWorkstations.Add(Station);
-
                             }
                     }
-                //MyWorkstations[0].Windows.Add(new Window(MyWorkstations[0], "Example", new Action<Window, byte>(Example)));
             }
             SystemMetrics();
             Me.GetSurface(0).ContentType = ContentType.SCRIPT;
@@ -116,7 +134,15 @@ namespace IngameScript
 
         public void Main(string argument, UpdateType updateSource)
         {
+
             clock++;
+            try
+            {
+                NetworkUpdate(updateSource, argument);
+            }
+            catch
+            {
+            }
 
             var UpdateWorkstation = MyWorkstations.ToList();
             foreach (Workstation MyWorkstation in UpdateWorkstation)
@@ -127,15 +153,48 @@ namespace IngameScript
                 }
                 catch (Exception Error)
                 {
-                    new BSoD(MyWorkstation);
+                    new BSoD(MyWorkstation, Error);
                     MyWorkstation.Controller.CustomData = Error.ToString();
                     MyWorkstations.Remove(MyWorkstation);
                 }
             }
-            if (argument == "NEW:DEBUG") MyWorkstations[0].Windows.Add(new Window(MyWorkstations[0], "Debug", new Action<Window, byte>(Debug)));
-            if (argument == "NEW:MEDIA") MyWorkstations[0].Windows.Add(new Window(MyWorkstations[0], "Media", new Action<Window, byte>(new MediaPlayer().MyMediaPlayer)));
-            if (argument == "NEW:MATH") MyWorkstations[0].Windows.Add(new Window(MyWorkstations[0], "Math", new Action<Window, byte>(new MathVisualizer().MyMathVisualizer)));
-            if (argument == "NEW:DIAG") MyWorkstations[0].Windows.Add(new Window(MyWorkstations[0], "ShipDiag", new Action<Window, byte>(new DiagInterface(Blocks, Me.CubeGrid).MyDiagInterface)));
+            if (argument != null)
+            {
+                try
+                {
+                    if (argument.Contains("NEW:DEBUG"))MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Debug", new Action<Window, byte>(Debug)));
+                    if (argument.Contains("NEW:MEDIA"))MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Media", new Action<Window, byte>(new MediaPlayer().MyMediaPlayer)));
+                    if (argument.Contains("NEW:MATH")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Math", new Action<Window, byte>(new MathVisualizer().MyMathVisualizer)));
+                    if (argument.Contains("NEW:DIAG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "ShipDiag", new Action<Window, byte>(new DiagInterface(Blocks, Me.CubeGrid).MyDiagInterface)));
+                    if (argument.Contains("NEW:PONG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "PongGame", new Action<Window, byte>(new Pong().MyPong)));
+                    if (argument.Contains("RESTART ")) foreach (IMyShipController Helm in Helms)
+                            if (Helm.CustomName.Contains(argument.Split(' ')[1]))
+                            {
+                                string[] Str = Helm.CustomName.Split('[');
+                                foreach (IMyTextPanel Panel in Panels)
+                                    if (Panel.CustomName.Contains(Str[1]))
+                                    {
+                                        Workstation Station = new Workstation(new MultiScreenSpriteSurface(Panel), Helm);
+                                        List<IMyTerminalBlock> ExtraBlocks = new List<IMyTerminalBlock>();
+                                        IMyBlockGroup BlockGroup = GridTerminalSystem.GetBlockGroupWithName("[" + Str[1]);
+                                        if (BlockGroup != null) BlockGroup.GetBlocks(ExtraBlocks);
+                                        foreach (IMyTerminalBlock Block in ExtraBlocks)
+                                        {
+                                            if (Block is IMySoundBlock) { Station.Sound.Add((IMySoundBlock)Block); }
+                                            if (Block is IMyShipToolBase) { Station.Tool = (IMyShipToolBase)Block; }
+                                        }
+                                        GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(ExtraBlocks, a => a.CustomName.Contains(Str[1]));
+                                        foreach (IMyTerminalBlock Block in ExtraBlocks)
+                                        {
+                                            if (Block is IMySoundBlock) { Station.Sound.Add((IMySoundBlock)Block); }
+                                            if (Block is IMyShipToolBase) { Station.Tool = (IMyShipToolBase)Block; }
+                                        }
+                                        MyWorkstations.Add(Station);
+                                    }
+                            }
+                }
+                catch (Exception Error) { Echo($"Argument Parse Error:{Error}"); }
+            }
             SystemMetrics();
         }
 
@@ -168,7 +227,7 @@ namespace IngameScript
         }
         public class About
         {
-            public string Version = "Alpha 0.2.5";
+            public string Version = "Alpha 0.2.6";
             public string Edition = "ShipWide Edition";
             public bool Activated = false;
             public bool Debug = false;

@@ -25,6 +25,7 @@ namespace IngameScript
             public Action<Window> TaskManager;
             public List<IMySoundBlock> Sound { get; }
             bool Debug;
+            public Vector2 Cursor = new Vector2();
             public List<Button> Buttons = new List<Button>();
             public IList Configs = new List<object>(new object[16]);
             public Window(Workstation _workstation, string _Title, Action<Window, byte> _Action)
@@ -95,6 +96,7 @@ namespace IngameScript
 
             public int CursorUpdate(Rectangle CHitbox, Vector2 CLP, int Status, bool Click)
             {
+                Cursor = new Vector2(CHitbox.Center.X, CHitbox.Center.Y);
                 if (!(bool)Configs[3] && Status >= 1)
                 {
                     if ((int)Configs[1] == 2)
@@ -110,10 +112,10 @@ namespace IngameScript
                 }
                 foreach (Button button in Buttons)
                 {
-                    if (CHitbox.Intersects(button.Hitbox) && Status == 3)
-                        if (Status == 1 || Status == 2)
+                    if (CHitbox.Intersects(button.Hitbox))
+                        if (Status == 1)
                             button.OnClick();
-                        else if (Status == 3)
+                        else if (Status == 2)
                             button.OnClicked();
                         else
                             button.OnHover();
