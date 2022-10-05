@@ -54,7 +54,7 @@ namespace IngameScript
                         Window.MyFrame = Window.Base;
                         Window.Configs[1] = 2;
                         Window.Configs[4] = $"Ship diagnostic, Displaying: {Grid.CustomName}";
-                        Window.Configs[5] = "Ship diagnostic info Display Version 3.0.6                (c) The Order-All rights reserved";
+                        Window.Configs[5] = "Ship diagnostic info Display Version 3.0.7                (c) The Order-All rights reserved";
 
                         C = Window.Meta.CanvasColor; T = Window.Meta.Theme;
                         if (Window.Configs[10] == null)
@@ -74,7 +74,7 @@ namespace IngameScript
                             Window.SpritesBuilder = Window.Content();
                             frame = Window.SpritesBuilder;
 
-                            TD("Ship diagnostic info Display V 3.0.1", 0 - 251f, -237f, W, 1f, Z, P); // Title
+                            TD("Ship diagnostic info Display V 3.0.7", 0 - 251f, -237f, W, 1f, Z, P); // Title
                             SS(-50f, -200f, 500f, 5f, W, Z, P); // WhiteLine
                             SS(-40f, -4f, 660f, 380f, T, Z, P); // InfoDisplayPanel
                             frame.Add(new MySprite(SpriteType.TEXTURE, "Circle", new Vector2(-320f, -200f) * Z + P, new Vector2(100f, 100f) * Z, T, null, Ta)); // ThemeCircle
@@ -185,25 +185,13 @@ namespace IngameScript
             public void BV1()
             {
                 int I = (int)Window.Configs[14];
-                switch (I)
-                {
-                    case 2: I = 0; break;
-                    case 1: I = 2; break;
-                    case 3: I = 1; break;
-                    case 0: I = 3; break;
-                }
+                I += 1; if (I > 5) I = 0;
                 Window.Configs[14] = I;
             }
             public void BV2()
             {
                 int I = (int)Window.Configs[14];
-                switch (I)
-                {
-                    case 0: I = 2; break;
-                    case 2: I = 1; break;
-                    case 1: I = 3; break;
-                    case 3: I = 0; break;
-                }
+                I -= 1; if (I < 0) I = 5;
                 Window.Configs[14] = I;
             }
             public void BRP() { rotation += 15; if (rotation > 345) rotation = 0; }
@@ -535,6 +523,7 @@ namespace IngameScript
                     float _OffsetX = (_Canvas.Width - _SpriteSize.X * _ScaleF) * 0.5f + _Canvas.X;
                     float _OffsetY = (_Canvas.Height - _SpriteSize.Y * _ScaleF) * 0.5f + _Canvas.Y;
 
+                    List<MyDetectedEntityInfo> Detected = new List<MyDetectedEntityInfo>();
                     List<MyDetectedEntityInfo> entities = new List<MyDetectedEntityInfo>();
                     foreach (IMyTerminalBlock Sensor in SensorList)
                     {
@@ -543,13 +532,25 @@ namespace IngameScript
                         {
                             ((IMySensorBlock)Sensor).DetectedEntities(SensorEntity);
                             foreach (MyDetectedEntityInfo entity in SensorEntity)
-                            { entities.Add(entity); }
+                            { Detected.Add(entity); }
                         }
                         if (Sensor is IMyTurretControlBlock)
-                            entities.Add(((IMyTurretControlBlock)Sensor).GetTargetedEntity());
+                            Detected.Add(((IMyTurretControlBlock)Sensor).GetTargetedEntity());
                         if (Sensor is IMyLargeTurretBase)
-                            entities.Add(((IMyLargeTurretBase)Sensor).GetTargetedEntity());
+                            Detected.Add(((IMyLargeTurretBase)Sensor).GetTargetedEntity());
                     }
+                    List<long> IDs = new List<long> { Grid.EntityId };
+                    foreach (MyDetectedEntityInfo entity in Detected)
+                    {
+                        if (!IDs.Contains(entity.EntityId))
+                        {
+                            if (entity.Position != new Vector3D())
+                            {
+                                IDs.Add(entity.EntityId);
+                                entities.Add(entity);
+                            }
+                        }
+                    };
                     foreach (MyDetectedEntityInfo entity in entities)
                     {
                         var EntityPos = Grid.WorldToGridInteger(entity.Position);
@@ -562,10 +563,11 @@ namespace IngameScript
                             entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Owner ? Color.Cyan : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Neutral ? Color.Yellow : entity.Relationship == MyRelationsBetweenPlayerAndBlock.FactionShare || entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : Color.Red));
                     }
                     DiagStatus = string.Format($"Hull Integrity:{DiagHull:0}%\nSystems Integrity: {DiagSystems:0}%\nSensor Count: {SensorList.Count()}\nTracking {entities.Count()} Entities");
-                    sprites.Add(new MySprite(SpriteType.TEXT, $"Ship diagnostic V1.5\nSprite Count:{Sprites[0].Count}\n{DiagStatus}", new Vector2(-310f, -150f), null, Color.White, "Monospace", TextAlignment.LEFT, .4f));
+                    sprites.Add(new MySprite(SpriteType.TEXT, $"Ship diagnostic V1.6\nSprite Count:{Sprites[0].Count}\n{DiagStatus}", new Vector2(-310f, -150f), null, Color.White, "Monospace", TextAlignment.LEFT, .4f));
                 }
-                catch {
-                    sprites.Add(new MySprite(SpriteType.TEXT, $"ERROR: Sensor Malfunction", new Vector2(-310f, -150f), null, Color.Red, "Monospace", TextAlignment.LEFT, .4f));
+                catch
+                {
+                    sprites.Add(new MySprite(SpriteType.TEXT, $"Ship diagnostic V1.6\nWARNING: Sensor Array Disabled", new Vector2(-310f, -150f), null, Color.Red, "Monospace", TextAlignment.LEFT, .4f));
                 }
                 return sprites;
             }
