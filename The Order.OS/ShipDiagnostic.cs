@@ -557,7 +557,8 @@ namespace IngameScript
                         Vector3I pos = new Vector3I(EntityPos.X, EntityPos.Y, EntityPos.Z);
                         Vector3I Entity = Rotate(pos - Grid_Min, _Scale);
 
-                        sprites.Add(new MySprite(SpriteType.TEXTURE, (entity.Type == MyDetectedEntityType.CharacterHuman || entity.Type == MyDetectedEntityType.CharacterOther) ? "Circle" : (entity.Type == MyDetectedEntityType.LargeGrid || entity.Type == MyDetectedEntityType.SmallGrid) ? "TriangleHollow" : "Danger",
+                        sprites.Add(new MySprite(SpriteType.TEXTURE, 
+                            (entity.Type == MyDetectedEntityType.CharacterHuman || entity.Type == MyDetectedEntityType.CharacterOther) ? "Circle" : (entity.Type == MyDetectedEntityType.LargeGrid || entity.Type == MyDetectedEntityType.SmallGrid) ? "CircleHollow" : "Danger",
                             new Vector2(Entity.X * _ScaleF + _OffsetX, Entity.Y * _ScaleF + _OffsetY),
                             (entity.Type == MyDetectedEntityType.CharacterHuman || entity.Type == MyDetectedEntityType.CharacterOther) ? new Vector2(_ScaleF, _ScaleF) : new Vector2(2 * _ScaleF, 2 * _ScaleF),
                             entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Owner ? Color.Cyan : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Neutral ? Color.Yellow : entity.Relationship == MyRelationsBetweenPlayerAndBlock.FactionShare || entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : Color.Red));
