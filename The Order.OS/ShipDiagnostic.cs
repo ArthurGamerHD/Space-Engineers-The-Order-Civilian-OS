@@ -219,7 +219,6 @@ namespace IngameScript
             int? Current;
             IEnumerator<bool> Task;
             IEnumerator<bool> Clear;
-            public Diagnostic() { }
             public Diagnostic(List<IMyTerminalBlock> _Blocks, IMyCubeGrid Grid)
             {
                 MyShipDiagnostic = new ShipDiagnostic(Grid);
