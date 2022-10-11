@@ -160,6 +160,8 @@ namespace IngameScript
             }
             if (argument != null)
             {
+
+                
                 try
                 {
                     if (argument.Contains("NEW:DEBUG"))MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Debug", new Action<Window, byte>(Debug)));

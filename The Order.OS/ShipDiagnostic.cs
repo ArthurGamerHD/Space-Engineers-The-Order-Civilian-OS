@@ -33,7 +33,7 @@ namespace IngameScript
                 Blocks = _Blocks; Grid = _Grid;
             }
 
-            public List<string> Dictionary = new List<string> { "00-HUL(indiferente esse n aparece)", "01-HPS", "02-BUK", "03-GRV", "04-LSS", "05-EPS", "06-BTP", "07-PDS", "08-ORS", "09-STT", "10-CDP", "11-STG", "12-H2S", "13-GYR", "14-HTS", "15-ITS", "16-ATS", "17-JPD", "18-WEP", "19-SSR", "20-COM", "21-ILT", "22-EXT", "TOGGLE", "OVRRD" };
+            public List<string> BString = new List<string> { "00-HUL", "01-HPS", "02-BUK", "03-GRV", "04-LSS", "05-EPS", "06-BTP", "07-PDS", "08-ORS", "09-STT", "10-CDP", "11-STG", "12-H2S", "13-GYR", "14-HTS", "15-ITS", "16-ATS", "17-JPD", "18-WEP", "19-SSR", "20-COM", "21-ILT", "22-EXT", "TOGGLE", "OVRRD" };
             List<MySprite> frame;
             int Page = 1, rotation = 0;
             List<bool> SubSystem;
@@ -104,10 +104,10 @@ namespace IngameScript
                             frame.Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 135f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, -1.5708f)); // Rotate-
                             frame.Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 170f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, 3.1416f)); // View-
                             TM("PREV", 342f, 15f, new Color(0, 0, 0, 255), 0.4f, Z, P); // PreviousButtonN
-                            TM(Dictionary[Page], 342f, -145f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button1N
-                            TM(Dictionary[Page + 1], 342f, -105f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button2N
-                            TM(Dictionary[Page + 2], 342f, -65f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button3N
-                            TM(Dictionary[Page + 3], 342f, -25f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button4N
+                            TM(BString[Page], 342f, -145f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button1N
+                            TM(BString[Page + 1], 342f, -105f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button2N
+                            TM(BString[Page + 2], 342f, -65f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button3N
+                            TM(BString[Page + 3], 342f, -25f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button4N
                             TM("NEXT", 342f, -185f, new Color(0, 0, 0, 255), 0.4f, Z, P); // NextButtonN
                             SS(360f, -28f, 5f, 5f, (SubSystem[Page + 3]) ? G : R, Z, P); // L4
                             SS(360f, -68f, 5f, 5f, (SubSystem[Page + 2]) ? G : R, Z, P); // L3
@@ -150,20 +150,20 @@ namespace IngameScript
             public void NewButton(float X, float Y, Action ButtonAction)
             {
                 Vector2 ButtonPos = (new Vector2(X, Y) * Z) + P - new Vector2(25, 12.5f) * Z;
-                SL(ButtonPos.X, ButtonPos.Y + 12.5f * Z, 50f, 25f, W, Z, P); // PrevButton
+                SL(ButtonPos.X, ButtonPos.Y + 12.5f * Z, 50f, 25f, W, Z); // PrevButton
                 Window.Buttons.Add(new Button((int)ButtonPos.X, (int)ButtonPos.Y, (int)(50f * Z), (int)(25f * Z), ButtonAction));
                 frame.Add(new MySprite(SpriteType.TEXTURE, "RightTriangle", new Vector2(X - 20, Y - 7.5f) * Z + P, new Vector2(10f, 10f) * Z, D, null, Ta, 1.5708f));
             }
             public void SmallButton(float X, float Y, Action ButtonAction)
             {
                 Vector2 ButtonPos = (new Vector2(X, Y) * Z) + P - new Vector2(12.5f, 12.5f) * Z;
-                SL(ButtonPos.X, ButtonPos.Y + 12.5f * Z, 25, 25, W, Z, P); // PrevButton
+                SL(ButtonPos.X, ButtonPos.Y + 12.5f * Z, 25, 25, W, Z); // PrevButton
                 Window.Buttons.Add(new Button((int)ButtonPos.X, (int)ButtonPos.Y, (int)(50f * Z), (int)(25f * Z), ButtonAction));
             }
 
             public void SS(float P1, float P2, float S1, float S2, Color C, float S, Vector2 P)
             { frame.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(P1, P2) * S + P, new Vector2(S1, S2) * S, C, null, TextAlignment.CENTER)); }
-            public void SL(float P1, float P2, float S1, float S2, Color C, float S, Vector2 P)
+            public void SL(float P1, float P2, float S1, float S2, Color C, float S)
             { frame.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(P1, P2), new Vector2(S1, S2) * S, C, null, TextAlignment.LEFT)); }
 
             public void TD(string text, float P1, float P2, Color C, float S, float s, Vector2 P)
@@ -308,11 +308,11 @@ namespace IngameScript
             public Vector3I Grid_Max { get; set; }
             public List<TerminalBlockState> TerminalBlocks { get; set; }
             public TileState[,] Tiles;
+            Dictionary<Type, int> TypeDictonary;
             public int DiagHull, tilesize, Stat;
             public Window Me { get; set; }
             public int Angle { get; set; }
             public int Plane { get; set; }
-            public string DiagStatus { get; set; }
             public List<List<MySprite>> Sprites { get; set; }
             public IEnumerator<bool> ResetDiag { get; set; }
             public IEnumerator<bool> DiagTask { get; set; }
@@ -320,6 +320,33 @@ namespace IngameScript
             {
                 Grid = _Grid;
                 TerminalBlocks = new List<TerminalBlockState>();
+                TypeDictonary = new Dictionary<Type, int>
+                {
+                     {typeof(IMyLightingBlock), 21},
+                     {typeof(IMyDoor), 2},
+                     {typeof(IMyBatteryBlock), 6},
+                     {typeof(IMyGyro), 13},
+                     {typeof(IMyPowerProducer), 5},
+                     {typeof(IMyAssembler), 7},
+                     {typeof(IMyRefinery), 8},
+                     {typeof(IMyUpgradeModule), 8},
+                     {typeof(IMyShipConnector), 10},
+                     {typeof(IMyLargeTurretBase), 18},
+                     {typeof(IMyCargoContainer), 11},
+                     {typeof(IMyJumpDrive), 17},
+                     {typeof(IMyTurretControlBlock), 18},
+                     {typeof(IMyShipToolBase), 9},
+                     {typeof(IMyGravityGenerator), 3},
+                     {typeof(IMyGasGenerator), 12},
+                     {typeof(IMyGasTank), 12},
+                     {typeof(IMySensorBlock), 19},
+                     {typeof(IMyAirVent), 1},
+                     {typeof(IMyCryoChamber), 5},
+                     {typeof(IMyMedicalRoom), 4},
+                     {typeof(IMyLaserAntenna), 20},
+                     {typeof(IMyRadioAntenna), 20}
+                };
+
             }
             public delegate Vector3I Rotation(Vector3I pos, Vector3I size);
             public enum BlockState { Empty, Missing, Damaged, Normal }
@@ -458,7 +485,6 @@ namespace IngameScript
                     }
                     yield return true;
                 }
-                Sprites[4] = new List<MySprite>();
                 Sprites[22] = new List<MySprite>();
                 Stat++;
                 for (int i = 0; i < TerminalBlocks.Count; ++i)
@@ -470,14 +496,59 @@ namespace IngameScript
                     if (possize.Y < 0) { poscube.Y += possize.Y + 1; possize.Y = -possize.Y; }
                     if (possize.Z < 0) { poscube.Z += possize.Z + 1; possize.Z = -possize.Z; }
                     MySprite Sprite = new MySprite(SpriteType.TEXTURE, "SquareHollow", new Vector2((poscube.X + possize.X * 0.5f - 0.5f) * _ScaleF + _OffsetX, (poscube.Y + possize.Y * 0.5f - 0.5f) * _ScaleF + _OffsetY), new Vector2(possize.X * _ScaleF, possize.Y * _ScaleF), TerminalBlocks[i].State == BlockState.Normal ? Color.Green : TerminalBlocks[i].State == BlockState.Damaged ? Color.Yellow : Color.Red);
-                    if (B is IMyBatteryBlock) { if (Sprites[6] == null) Sprites[6] = new List<MySprite>(); Sprites[6].Add(Sprite); }
-                    else if (B is IMyPowerProducer) { if (Sprites[5] == null) Sprites[5] = new List<MySprite>(); Sprites[5].Add(Sprite); }
-                    else
-                        Sprites[22].Add(Sprite);
+                    if (
+                       PopulateSprites<IMyLightingBlock>(B, Sprite)
+                    || PopulateSprites<IMyDoor>(B, Sprite)
+                    || PopulateSprites<IMyBatteryBlock>(B, Sprite)
+                    || PopulateSprites<IMyGyro>(B, Sprite)
+                    || PopulateSprites<IMyPowerProducer>(B, Sprite)
+                    || PopulateSprites<IMyAssembler>(B, Sprite)
+                    || PopulateSprites<IMyRefinery>(B, Sprite)
+                    || PopulateSprites<IMyUpgradeModule>(B, Sprite)
+                    || PopulateSprites<IMyShipConnector>(B, Sprite)
+                    || PopulateSprites<IMyLargeTurretBase>(B, Sprite)
+                    || PopulateSprites<IMyCargoContainer>(B, Sprite)
+                    || PopulateSprites<IMyJumpDrive>(B, Sprite)
+                    || PopulateSprites<IMyTurretControlBlock>(B, Sprite)
+                    || PopulateSprites<IMyShipToolBase>(B, Sprite)
+                    || PopulateSprites<IMyGravityGenerator>(B, Sprite)
+                    || PopulateSprites<IMyGasGenerator>(B, Sprite)
+                    || PopulateSprites<IMyGasTank>(B, Sprite)
+                    || PopulateSprites<IMySensorBlock>(B, Sprite)
+                    || PopulateSprites<IMyAirVent>(B, Sprite)
+                    || PopulateSprites<IMyCryoChamber>(B, Sprite)
+                    || PopulateSprites<IMyMedicalRoom>(B, Sprite)
+                    || PopulateSprites<IMyLaserAntenna>(B, Sprite)
+                    || PopulateSprites<IMyRadioAntenna>(B, Sprite))
+                    { /*nothing else to do yet*/ }
+                    else { Sprites[22].Add(Sprite); }
                     if (i % 60 == 0) yield return true;
                 }
                 yield return true;
             }
+
+            bool PopulateSprites<T>(IMyTerminalBlock b, MySprite sprite) where T : class, IMyTerminalBlock
+            {
+                if (b is T)
+                {
+                    int idx;
+                    if (!TypeDictonary.TryGetValue(typeof(T), out idx))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        if (Sprites[idx] == null)
+                        {
+                            Sprites[idx] = new List<MySprite>();
+                        }
+                        Sprites[idx].Add(sprite);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             int terminal_healthy, DiagSystems;
             public IEnumerable<bool> RunDiag(int R)
             {
@@ -556,14 +627,14 @@ namespace IngameScript
                         Vector3I pos = new Vector3I(EntityPos.X, EntityPos.Y, EntityPos.Z);
                         Vector3I Entity = Rotate(pos - Grid_Min, _Scale);
 
-                        sprites.Add(new MySprite(SpriteType.TEXTURE, 
+                        sprites.Add(new MySprite(SpriteType.TEXTURE,
                             (entity.Type == MyDetectedEntityType.CharacterHuman || entity.Type == MyDetectedEntityType.CharacterOther) ? "Circle" : (entity.Type == MyDetectedEntityType.LargeGrid || entity.Type == MyDetectedEntityType.SmallGrid) ? "CircleHollow" : "Danger",
                             new Vector2(Entity.X * _ScaleF + _OffsetX, Entity.Y * _ScaleF + _OffsetY),
                             (entity.Type == MyDetectedEntityType.CharacterHuman || entity.Type == MyDetectedEntityType.CharacterOther) ? new Vector2(_ScaleF, _ScaleF) : new Vector2(2 * _ScaleF, 2 * _ScaleF),
                             entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Owner ? Color.Cyan : entity.Relationship == MyRelationsBetweenPlayerAndBlock.Neutral ? Color.Yellow : entity.Relationship == MyRelationsBetweenPlayerAndBlock.FactionShare || entity.Relationship == MyRelationsBetweenPlayerAndBlock.Friends ? Color.Green : Color.Red));
                     }
-                    DiagStatus = string.Format($"Hull Integrity:{DiagHull:0}%\nSystems Integrity: {DiagSystems:0}%\nSensor Count: {SensorList.Count()}\nTracking {entities.Count()} Entities");
-                    sprites.Add(new MySprite(SpriteType.TEXT, $"Ship diagnostic V1.6\nSprite Count:{Sprites[0].Count}\n{DiagStatus}", new Vector2(-310f, -150f), null, Color.White, "Monospace", TextAlignment.LEFT, .4f));
+                    string DiagStatus = string.Format($"Hull Integrity:{DiagHull:0}%\nSystems Integrity: {DiagSystems:0}%\nSensor Count: {SensorList.Count()}\nTracking {entities.Count()} Entities");
+                    sprites.Add(new MySprite(SpriteType.TEXT, $"Ship diagnostic V1.6\nSprite Count:{((Sprites[0] != null) ? Sprites[0].Count.ToString() : "NaN")}\n{DiagStatus}", new Vector2(-310f, -150f), null, Color.White, "Monospace", TextAlignment.LEFT, .4f));
                 }
                 catch
                 {
