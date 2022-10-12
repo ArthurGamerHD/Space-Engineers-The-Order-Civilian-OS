@@ -108,6 +108,7 @@ namespace IngameScript
                                 Workstation Station = new Workstation(new MultiScreenSpriteSurface(Panel), Helm);
                                 List<IMyTerminalBlock> ExtraBlocks = new List<IMyTerminalBlock>();
                                 IMyBlockGroup BlockGroup = GridTerminalSystem.GetBlockGroupWithName("[" + Str[1]);
+
                                 if (BlockGroup != null) BlockGroup.GetBlocks(ExtraBlocks);
                                 foreach (IMyTerminalBlock Block in ExtraBlocks)
                                 {
@@ -136,13 +137,9 @@ namespace IngameScript
         {
 
             clock++;
-            try
-            {
-                NetworkUpdate(updateSource, argument);
-            }
-            catch
-            {
-            }
+
+            NetworkUpdate(updateSource, argument);
+
 
             var UpdateWorkstation = MyWorkstations.ToList();
             foreach (Workstation MyWorkstation in UpdateWorkstation)
@@ -160,12 +157,10 @@ namespace IngameScript
             }
             if (argument != null)
             {
-
-                
                 try
                 {
-                    if (argument.Contains("NEW:DEBUG"))MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Debug", new Action<Window, byte>(Debug)));
-                    if (argument.Contains("NEW:MEDIA"))MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Media", new Action<Window, byte>(new MediaPlayer().MyMediaPlayer)));
+                    if (argument.Contains("NEW:DEBUG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Debug", new Action<Window, byte>(Debug)));
+                    if (argument.Contains("NEW:MEDIA")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Media", new Action<Window, byte>(new MediaPlayer().MyMediaPlayer)));
                     if (argument.Contains("NEW:MATH")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Math", new Action<Window, byte>(new MathVisualizer().MyMathVisualizer)));
                     if (argument.Contains("NEW:DIAG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "ShipDiag", new Action<Window, byte>(new DiagInterface(Blocks, Me.CubeGrid).MyDiagInterface)));
                     if (argument.Contains("NEW:PONG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "PongGame", new Action<Window, byte>(new Pong().MyPong)));

@@ -9,6 +9,7 @@
 		  <Enabled>yes</Enabled>
 	  </MDKTrimTypes>
 	  <MDKMinify>
+		  <!--Level>none</Level-->
 		  <Level>Full</Level>
 	  </MDKMinify>
 	  <MDKIgnore>

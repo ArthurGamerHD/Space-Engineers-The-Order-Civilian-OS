@@ -29,17 +29,37 @@ namespace IngameScript
                 while (RxB.HasPendingMessage)
                 {
                     MyIGCMessage iGCMessage = RxB.AcceptMessage();
-                    var data = iGCMessage.Data;
+                    UpdateBrowser(iGCMessage.Data, iGCMessage.Source, iGCMessage.Tag);
                 }
             }
-            if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxU")
+            else if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxU")
             {
-                while (RxB.HasPendingMessage)
+                while (RxU.HasPendingMessage)
                 {
                     MyIGCMessage iGCMessage = RxU.AcceptMessage();
-                    var data = iGCMessage.Data;
+                    UpdateBrowser(iGCMessage.Data, iGCMessage.Source, iGCMessage.Tag);
                 }
             }
+        }
+        void UpdateBrowser(object Data, long Origin = 0, string Tag = "")
+        {
+            bool Found = false;
+            string SData = Data.ToString();
+            Me.CustomData = SData;
+            foreach (Workstation Workstation in MyWorkstations)
+            {
+                foreach (Window Window in Workstation.Windows)
+                    if (Window.Configs[10] is MyDecoder)
+                        if (((MyDecoder)Window.Configs[10]).Origin == Origin && ((MyDecoder)Window.Configs[10]).Tag == Tag) { ((MyDecoder)Window.Configs[10]).Decode(SData); Found = true; break; }
+                if (Found) break;
+            }
+            if (!Found)
+            {
+                Window Window = new Window(MyWorkstations[0], "Compass", new Action<Window, byte>(new WebBrowser(Origin, Tag).MyBrowserInterface));
+                ((MyDecoder)Window.Configs[10]).Decode(SData);
+                MyWorkstations[0].Windows.Add(Window);
+            }
+
         }
     }
 }

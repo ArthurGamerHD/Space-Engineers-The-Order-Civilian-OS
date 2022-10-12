@@ -40,6 +40,7 @@
   <ItemGroup>
     <Compile Include="BSoD.cs" />
     <Compile Include="Button Handler.cs" />
+    <Compile Include="Encoder.cs" />
     <Compile Include="MediaPlayer.cs" />
     <Compile Include="MathVisualizer.cs" />
     <Compile Include="Debug.cs" />
@@ -59,6 +60,7 @@
     <AdditionalFiles Include="MDK\whitelist.cache" />
     <Compile Include="Render.cs" />
     <Compile Include="Pong.cs" />
+    <Compile Include="WebBrowser.cs" />
     <Compile Include="ShipDiagnostic.cs" />
     <Compile Include="TimeConverter.cs" />
     <Compile Include="Workstation.cs" />
