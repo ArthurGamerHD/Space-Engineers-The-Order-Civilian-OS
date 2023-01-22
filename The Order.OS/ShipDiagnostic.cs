@@ -42,7 +42,7 @@ namespace IngameScript
             Vector2I P;
             TextAlignment Ta = TextAlignment.CENTER;
             Color R = Color.Red, G = Color.Green, W = Color.White, D = Color.DarkGray, C, T;
-            public void MyDiagInterface(Window _Window, byte Action)
+            public void Initialize(Window _Window, byte Action)
             {
                 Window = _Window;
                 frame = Window.SpritesBuilder;
@@ -56,7 +56,7 @@ namespace IngameScript
                         Window.Configs[4] = $"Ship diagnostic, Displaying: {Grid.CustomName}";
                         Window.Configs[5] = "Ship diagnostic info Display Version 3.0.7                (c) The Order-All rights reserved";
 
-                        C = Window.Meta.CanvasColor; T = Window.Meta.Theme;
+                        C = MetaData.CanvasColor; T = MetaData.Theme;
                         if (Window.Configs[10] == null)
                         {
                             Window.Configs[10] = new Diagnostic(Blocks, Grid);
@@ -90,31 +90,25 @@ namespace IngameScript
                             SS(-205f, -200f, 10f, 7f, C, Z, P); // MaskLine2
                             SS(-255f, -200f, 10f, 7f, C, Z, P); // MaskLine1
                             NewButton(340f, 170f, BV2);// View-Button
+                            ((List<MySprite>)Window.Buttons.Last().Content).Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 170f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, 3.1416f)); // View-
                             NewButton(340f, 135f, BRS);// Rotate-Button
+                            ((List<MySprite>)Window.Buttons.Last().Content).Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 135f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, -1.5708f)); // Rotate-
                             NewButton(340f, 105f, BRP);// Rotate+Button
+                            ((List<MySprite>)Window.Buttons.Last().Content).Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 105f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, 1.5708f)); // Rotate+
                             NewButton(340f, 70f, BV1); // View+Button
-                            NewButton(340f, 20f, BP);  // PrevButton
-                            NewButton(340f, -20f, B4); // Act4Button
-                            NewButton(340f, -60f, B3); // Act3Button
-                            NewButton(340f, -100f, B2);// Act2Button
-                            NewButton(340f, -140f, B1);// Act1Button
-                            NewButton(340f, -180f, BN);// NextButton
-                            frame.Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 70f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta)); // View+
-                            frame.Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 105f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, 1.5708f)); // Rotate+
-                            frame.Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 135f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, -1.5708f)); // Rotate-
-                            frame.Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 170f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta, 3.1416f)); // View-
-                            TM("PREV", 342f, 15f, new Color(0, 0, 0, 255), 0.4f, Z, P); // PreviousButtonN
-                            TM(BString[Page], 342f, -145f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button1N
-                            TM(BString[Page + 1], 342f, -105f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button2N
-                            TM(BString[Page + 2], 342f, -65f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button3N
-                            TM(BString[Page + 3], 342f, -25f, new Color(0, 0, 0, 255), 0.4f, Z, P); // Button4N
-                            TM("NEXT", 342f, -185f, new Color(0, 0, 0, 255), 0.4f, Z, P); // NextButtonN
+                            ((List<MySprite>)Window.Buttons.Last().Content).Add(new MySprite(SpriteType.TEXTURE, "Arrow", new Vector2(340f, 70f) * Z + P, new Vector2(20f, 20f) * Z, new Color(0, 0, 0, 255), null, Ta)); // View+
+                            NewButton(340f, 20f, BP, "PREV");  // PrevButton
+                            NewButton(340f, -20f, B4, BString[Page + 3]); // Act4Button
+                            NewButton(340f, -60f, B3, BString[Page + 2]); // Act3Button
+                            NewButton(340f, -100f, B2, BString[Page + 1]);// Act2Button
+                            NewButton(340f, -140f, B1, BString[Page]);// Act1Button
+                            NewButton(340f, -180f, BN, "NEXT");// NextButton
                             SS(360f, -28f, 5f, 5f, (SubSystem[Page + 3]) ? G : R, Z, P); // L4
                             SS(360f, -68f, 5f, 5f, (SubSystem[Page + 2]) ? G : R, Z, P); // L3
                             SS(360f, -108f, 5f, 5f, (SubSystem[Page + 1]) ? G : R, Z, P); // L2
                             SS(360f, -148f, 5f, 5f, (SubSystem[Page]) ? G : R, Z, P); // L1
                             frame.Add(new MySprite(SpriteType.TEXTURE, "Circle", new Vector2(-320f, -200f) * Z + P, new Vector2(80f, 80f) * Z, W, null, Ta)); // FactionIconBack
-                            frame.Add(new MySprite(SpriteType.TEXTURE, Window.Meta.FactionIcon, new Vector2(-320f, -200f) * Z + P, new Vector2(80f, 80f) * Z, Window.Meta.FactionColor, null, Ta)); // TheOrderLogo
+                            frame.Add(new MySprite(SpriteType.TEXTURE, MetaData.FactionIcon, new Vector2(-320f, -200f) * Z + P, new Vector2(80f, 80f) * Z, MetaData.FactionColor, null, Ta)); // TheOrderLogo
                             var size = new Vector2(640f, 320f) * Z;
                             RectangleF DrawArea = new RectangleF(new Vector2(-40f, 10f) * Z + P - size / 2, size);
                             frame.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", DrawArea.Position + new Vector2(0, DrawArea.Size.Y / 2), DrawArea.Size, new Color(0, 0, 0, 255), null, TextAlignment.LEFT)); // InfoDisplayBlack
@@ -127,8 +121,8 @@ namespace IngameScript
                                 float cos = (float)Math.Cos(rotationF);
                                 frame.Add(new MySprite(S.Type, S.Data, (S.Type == SpriteType.TEXT) ? S.Position * Z + DrawArea.Center : new Vector2(cos * S.Position.Value.X - sin * S.Position.Value.Y, sin * S.Position.Value.X + cos * S.Position.Value.Y) * (Z * zoom) + DrawArea.Center, (S.Size != null) ? S.Size * (Z * zoom) : null, S.Color, S.FontId, S.Alignment, (S.Type == SpriteType.TEXT) ? S.RotationOrScale * Z : (S.Data == "SquareSimple" || S.Data == "SquareHollow") ? rotationF : S.RotationOrScale));
                             }
-                            SmallButton(260f, 120f, BZS);
-                            SmallButton(260f, 150f, BZP);
+                            SmallButton(260f, 120f, BZP);
+                            SmallButton(260f, 150f, BZS);
 
                             if (rotation != 0 && zoom > 1) frame.Add(new MySprite(SpriteType.TEXT, "Due to screens limitations\nrotate a image larger than\ncanvas cause visual glitch\nCheck: Shorturl.at/vCR89", new Vector2(40f, -140f) * Z + P, null, Color.Red, "Monospace", TextAlignment.LEFT, .4f * Z)); // ShipName
 
@@ -147,18 +141,21 @@ namespace IngameScript
                         break;
                 }
             }
-            public void NewButton(float X, float Y, Action ButtonAction)
+            public void NewButton(float X, float Y, Action ButtonAction, string Text = null)
             {
                 Vector2 ButtonPos = (new Vector2(X, Y) * Z) + P - new Vector2(25, 12.5f) * Z;
-                SL(ButtonPos.X, ButtonPos.Y + 12.5f * Z, 50f, 25f, W, Z); // PrevButton
-                Window.Buttons.Add(new Button((int)ButtonPos.X, (int)ButtonPos.Y, (int)(50f * Z), (int)(25f * Z), ButtonAction));
-                frame.Add(new MySprite(SpriteType.TEXTURE, "RightTriangle", new Vector2(X - 20, Y - 7.5f) * Z + P, new Vector2(10f, 10f) * Z, D, null, Ta, 1.5708f));
+                SL(ButtonPos.X, ButtonPos.Y + 12.5f * Z, 50f, 25f, W, Z);
+                var Temp = new List<MySprite> {
+                    new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(ButtonPos.X, ButtonPos.Y + 12.5f * Z), new Vector2(50f, 25f) * Z, W, null, TextAlignment.LEFT),
+                    new MySprite(SpriteType.TEXTURE, "RightTriangle", new Vector2(X - 20, Y - 7.5f) * Z + P, new Vector2(10f, 10f) * Z, D, null, Ta, 1.5708f)};
+                if (Text != null)
+                    Temp.Add(new MySprite(SpriteType.TEXT, Text, new Vector2(ButtonPos.X +(25 * Z), ButtonPos.Y + (10 * Z)), null, Color.Black, "Monospace", TextAlignment.CENTER, .4f * Z));
+                Window.Buttons.Add(new Button((int)ButtonPos.X, (int)ButtonPos.Y, (int)(50f * Z), (int)(25f * Z), ButtonAction, null, null, Temp));
             }
             public void SmallButton(float X, float Y, Action ButtonAction)
             {
                 Vector2 ButtonPos = (new Vector2(X, Y) * Z) + P - new Vector2(12.5f, 12.5f) * Z;
-                SL(ButtonPos.X, ButtonPos.Y + 12.5f * Z, 25, 25, W, Z); // PrevButton
-                Window.Buttons.Add(new Button((int)ButtonPos.X, (int)ButtonPos.Y, (int)(50f * Z), (int)(25f * Z), ButtonAction));
+                Window.Buttons.Add(new Button((int)(ButtonPos.X), (int)ButtonPos.Y, (int)(25f * Z), (int)(25f * Z), ButtonAction));
             }
 
             public void SS(float P1, float P2, float S1, float S2, Color C, float S, Vector2 P)

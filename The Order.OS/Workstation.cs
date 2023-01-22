@@ -19,17 +19,18 @@ namespace IngameScript
             public List<IMySoundBlock> Sound { get; }
             public Vector2I Cursor, CursorSprite;
             public float Scale = 2;
+            public string Wallpaper = "";
             public int CursorStatus, S32;
             public double Standby;
             bool ECursor, ETaskBar, EBackground;
             public List<Window> Windows;
             Vector2I offset, CenterPos;
             public RectangleF ViewPort { get; private set; }
-            readonly MetaData MyMetaData = new MetaData();
+            readonly MetaData MetaData = new MetaData();
             public int SpriteCount { get; set; }
             int clock;
 
-            float X, Y, Xp = 0, Yp = 0; Color MyColor = new Color(255, 255, 255); Random rnd = new Random();
+            float X, Y, Xp = 0, Yp = 0; Color MyColor = Color.White; Random rnd = new Random();
 
             public Workstation(MultiScreenSpriteSurface _Screen, IMyShipController _Controller)
             {
@@ -85,7 +86,7 @@ namespace IngameScript
                         Y += Yp;
                         Yp = (Y + S70 > ViewPort.Height) ? -S5 : (Y - S70 < ViewPort.Y) ? S5 : Yp;
                         var centerPos = new Vector2(X, Y);
-                        Screen.Add(new MySprite(SpriteType.TEXTURE, MyMetaData.FactionIcon, new Vector2(0f, -34f) * Scale + centerPos, new Vector2(100, 100), MyColor, "DEBUG", TextAlignment.CENTER, 2f * Scale));
+                        Screen.Add(new MySprite(SpriteType.TEXTURE, MetaData.FactionIcon, new Vector2(0f, -34f) * Scale + centerPos, new Vector2(100, 100), MyColor, "DEBUG", TextAlignment.CENTER, 2f * Scale));
                         Screen.Add(new MySprite(SpriteType.TEXT, "The Order OS", new Vector2(0f, 09f) * Scale + centerPos, null, MyColor, "DEBUG", TextAlignment.CENTER, 0.8f * Scale));
 
                     }
@@ -98,9 +99,22 @@ namespace IngameScript
             public void Backgroud()
             {
                 About Me = new About { };
+                if (Wallpaper == "")
                 {
-                    Screen.Add(new MySprite(SpriteType.TEXT, $"{Controller.GetOwnerFactionTag()}.OS", new Vector2(-210f, -40f) * Scale + CenterPos, null, MyMetaData.FactionColor, "White", TextAlignment.LEFT, 2.7f * Scale));
-                    Screen.Add(new MySprite(SpriteType.TEXTURE, MyMetaData.FactionIcon, new Vector2(175f, 0f) * Scale + CenterPos, new Vector2(150f, 150f) * Scale, MyMetaData.FactionColor, null, TextAlignment.CENTER, 0f));
+                    StringBuilder Buffer = new StringBuilder();
+                    Screen._anchor.ReadText(Buffer);
+                    if (Buffer.ToString().Contains("WIC"))
+                        Wallpaper = Buffer.ToString();
+                    else Wallpaper = "-";
+                }
+                else if (Wallpaper != "-")
+                {
+                    Screen.Add(new MySprite(SpriteType.TEXT, Wallpaper.ToString(), new Vector2(CenterPos.X, 0), null, fontId: "Monospace", alignment: TextAlignment.CENTER, rotation: .163f));
+                }
+                else
+                {
+                    Screen.Add(new MySprite(SpriteType.TEXT, $"{Controller.GetOwnerFactionTag()}.OS", new Vector2(-210f, -40f) * Scale + CenterPos, null, MetaData.FactionColor, "White", TextAlignment.LEFT, 2.7f * Scale));
+                    Screen.Add(new MySprite(SpriteType.TEXTURE, MetaData.FactionIcon, new Vector2(175f, 0f) * Scale + CenterPos, new Vector2(150f, 150f) * Scale, MetaData.FactionColor, null, TextAlignment.CENTER, 0f));
                 }
                 if (!Me.Activated)
                 {
@@ -115,9 +129,9 @@ namespace IngameScript
             }
             public void TaskBar()
             {
-                Screen.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(ViewPort.X + ViewPort.Width / 2, ViewPort.Bottom - (S32 / 2)), new Vector2(ViewPort.Width, S32), MyMetaData.Theme));
+                Screen.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(ViewPort.X + ViewPort.Width / 2, ViewPort.Bottom - (S32 / 2)), new Vector2(ViewPort.Width, S32), MetaData.Theme));
                 Rectangle StartMenu = new Rectangle((int)ViewPort.X, (int)ViewPort.Height - S32, S32, S32);
-                Screen.Add(new MySprite(SpriteType.TEXTURE, MyMetaData.FactionIcon, new Vector2(StartMenu.Center.X, StartMenu.Center.Y), new Vector2(S32, S32), MyMetaData.FactionColor));
+                Screen.Add(new MySprite(SpriteType.TEXTURE, MetaData.FactionIcon, new Vector2(StartMenu.Center.X, StartMenu.Center.Y), new Vector2(S32, S32), MetaData.FactionColor));
             }
             public void GetCursor()
             {
@@ -154,7 +168,7 @@ namespace IngameScript
                 null, TextAlignment.LEFT, -.56f));
             }
 
-            public void TaskManager(Window window)
+            public void TaskKill(Window window)
             {
                 Windows.Remove(window);
             }

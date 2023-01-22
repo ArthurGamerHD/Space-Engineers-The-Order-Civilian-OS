@@ -23,25 +23,31 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
         #region mdk preserve
+
+        //----------- EDIT YOUR SYSTEM COLOR SCHEME HERE -----------\\
+
         public class MetaData
         {
-            public MetaData()
-            {
-                Theme = new Color(9, 98, 166, 255);
-                BackgroundColor = new Color(2, 4, 76, 255);
-                CanvasColor = new Color(32, 32, 32, 255);
-                FactionColor = new Color(21, 0, 25);
-                FactionIcon = "Textures\\FactionLogo\\Others\\OtherIcon_18.dds";
-            }
-            public Color Theme { get; }
-            public Color BackgroundColor { get; }
-            public Color CanvasColor { get; }
-            public Color FactionColor { get; }
-            public string FactionIcon { get; }
+            static public Color Theme = new Color(0, 35, 145, 255);
+            static public Color BackgroundColor = new Color(16, 16, 16, 255);
+            static public Color CanvasColor = new Color(32, 32, 32, 255);
+            static public Color FactionColor = new Color(21, 0, 25);
+            static public string FactionIcon = "Textures\\FactionLogo\\Others\\OtherIcon_18.dds";
         }
 
+        //------------- INSTALED PROGRAMS SHORTCUT HERE -------------\\
+
+        void Shortcuts()
+        {
+            Programs.Add("DEBUG", new Action<Window, byte>(Debug));
+            Programs.Add("MEDIA", new Action<Window, byte>(new MediaPlayer().Initialize));
+            Programs.Add("MATH", new Action<Window, byte>(new MathVisualizer().Initialize));
+            Programs.Add("DIAG", new Action<Window, byte>(new DiagInterface(Blocks, Me.CubeGrid).Initialize));
+            Programs.Add("SANDBOX", new Action<Window, byte>(new UISandbox().Initialize));
+        }
 
         //-------------- DO NOT TOUCH BELLOW THIS LINE --------------\\
+        //-------- (Or touch, I'm just a comment, Not a cop) --------\\
 
         #endregion
         #region LocalStorage
@@ -52,9 +58,10 @@ namespace IngameScript
         List<IMyTextPanel> Panels = new List<IMyTextPanel> { };
         List<IMyShipToolBase> Mouse = new List<IMyShipToolBase> { };
         List<Workstation> MyWorkstations = new List<Workstation> { };
-        public IMyBroadcastListener RxB;
-        public IMyUnicastListener RxU;
+        public List<IMyMessageProvider> CommunicationSystems = new List<IMyMessageProvider>();
         int clock;
+        MyIni InternalStorage;
+        Dictionary<string, Action<Window, byte>> Programs = new Dictionary<string, Action<Window, byte>>();
 
         #endregion
         #region Ultilities
@@ -77,17 +84,26 @@ namespace IngameScript
 
         public Program()
         {
+            InternalStorage = new MyIni();
+            if (Storage == "" || !InternalStorage.TryParse(Storage))
+            {
+                Storage = $"[TOS]\nInstalation={DateTime.Now}\n[TOS-SystemRegister]\n[TOS-Hardware]\n[TOS-Network]\n[TOS-Storage]";
+                InternalStorage.TryParse(Storage);
+            };
             Runtime.UpdateFrequency = UpdateFrequency.Update1;
-            Reload();
+            ReloadGridTerminalSystem();
+            IMyBroadcastListener RxB = IGC.RegisterBroadcastListener(Me.CubeGrid.CustomName);
+            IMyUnicastListener RxU = IGC.UnicastListener;
+            RxB.SetMessageCallback("RxB");
+            RxU.SetMessageCallback("RxU");
+            CommunicationSystems.Add(RxB);
+            CommunicationSystems.Add(RxU);
+            Shortcuts();
         }
-        void Reload()
+        void ReloadGridTerminalSystem()
         {
             Blocks.Clear();
             GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(Blocks);
-            RxB = IGC.RegisterBroadcastListener(Me.CubeGrid.CustomName);
-            RxU = IGC.UnicastListener;
-            RxB.SetMessageCallback("RxB");
-            RxU.SetMessageCallback("RxU");
             if (BlockNumber != Blocks.Count())
             {
                 BlockNumber = Blocks.Count();
@@ -130,7 +146,7 @@ namespace IngameScript
         }
         public void Save()
         {
-
+            Storage = InternalStorage.ToString();
         }
 
         public void Main(string argument, UpdateType updateSource)
@@ -157,13 +173,20 @@ namespace IngameScript
             }
             if (argument != null)
             {
+                string[] Args = argument.Split(':');
+                Args[0] = Args[0].ToUpper();
+
                 try
                 {
-                    if (argument.Contains("NEW:DEBUG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Debug", new Action<Window, byte>(Debug)));
-                    if (argument.Contains("NEW:MEDIA")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Media", new Action<Window, byte>(new MediaPlayer().MyMediaPlayer)));
-                    if (argument.Contains("NEW:MATH")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "Math", new Action<Window, byte>(new MathVisualizer().MyMathVisualizer)));
-                    if (argument.Contains("NEW:DIAG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "ShipDiag", new Action<Window, byte>(new DiagInterface(Blocks, Me.CubeGrid).MyDiagInterface)));
-                    if (argument.Contains("NEW:PONG")) MyWorkstations[int.Parse(argument.Split(':')[2])].Windows.Add(new Window(MyWorkstations[0], "PongGame", new Action<Window, byte>(new Pong().MyPong)));
+                    switch (Args[0])
+                    {
+                        case "FORMAT": Storage = ""; InternalStorage.Clear(); break;
+                        case "NEW":
+                            {
+                                Args[1] = Args[1].ToUpper();
+                                MyWorkstations[int.Parse(Args[2])].Windows.Add(new Window(MyWorkstations[0], Args[1], Programs.GetValueOrDefault(Args[1]))); break;
+                            }
+                    }
                     if (argument.Contains("RESTART ")) foreach (IMyShipController Helm in Helms)
                             if (Helm.CustomName.Contains(argument.Split(' ')[1]))
                             {
@@ -224,10 +247,10 @@ namespace IngameScript
         }
         public class About
         {
-            public string Version = "Alpha 0.2.6";
+            public string Version = "Alpha 0.3.0";
             public string Edition = "ShipWide Edition";
             public bool Activated = false;
-            public bool Debug = false;
+            public bool Debug = true;
         }
     }
 }

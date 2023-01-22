@@ -24,22 +24,24 @@ namespace IngameScript
     {
         void NetworkUpdate(UpdateType UpdateSource, string Argument)
         {
-            if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxB")
-            {
-                while (RxB.HasPendingMessage)
+            if((UpdateSource & UpdateType.IGC) > 0 || (UpdateSource & UpdateType.IGC) > 0)
+            foreach (var Provider in CommunicationSystems)
+                if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxB")
                 {
-                    MyIGCMessage iGCMessage = RxB.AcceptMessage();
-                    UpdateBrowser(iGCMessage.Data, iGCMessage.Source, iGCMessage.Tag);
+                    while (Provider.HasPendingMessage)
+                    {
+                        MyIGCMessage iGCMessage = Provider.AcceptMessage();
+                        UpdateBrowser(iGCMessage.Data, iGCMessage.Source, iGCMessage.Tag);
+                    }
                 }
-            }
-            else if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxU")
-            {
-                while (RxU.HasPendingMessage)
+                else if ((UpdateSource & UpdateType.IGC) > 0 & Argument == "RxU")
                 {
-                    MyIGCMessage iGCMessage = RxU.AcceptMessage();
-                    UpdateBrowser(iGCMessage.Data, iGCMessage.Source, iGCMessage.Tag);
+                    while (Provider.HasPendingMessage)
+                    {
+                        MyIGCMessage iGCMessage = Provider.AcceptMessage();
+                        UpdateBrowser(iGCMessage.Data, iGCMessage.Source, iGCMessage.Tag);
+                    }
                 }
-            }
         }
         void UpdateBrowser(object Data, long Origin = 0, string Tag = "")
         {

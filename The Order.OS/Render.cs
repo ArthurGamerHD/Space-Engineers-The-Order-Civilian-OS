@@ -196,7 +196,7 @@ namespace IngameScript
             public readonly int Rows;
             public readonly int Cols;
 
-            public Color ScriptBackgroundColor { get; set; } = new MetaData().BackgroundColor;
+            public Color ScriptBackgroundColor { get; set; } = MetaData.BackgroundColor;
             public IMyTextPanel _anchor;
             ITerminalProperty<float> _rotationProp;
             float _rotationAngle = 0f;

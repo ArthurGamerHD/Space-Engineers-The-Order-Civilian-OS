@@ -35,7 +35,6 @@ namespace IngameScript
             List<MySprite> frame;
             Window Window;
             float Z;
-            Vector2I P;
             public void MyBrowserInterface(Window _Window, byte Action)
             {
                 Window = _Window;
@@ -56,7 +55,6 @@ namespace IngameScript
                     case 1:
                         if (frame.Count == 0)
                         {
-                            P = new Vector2I(Window.MyFrame.Center.X, Window.MyFrame.Center.Y);
                             Window.SpritesBuilder = Window.Content();
                             frame = Window.SpritesBuilder;
                             var size = ((MyDecoder)Window.Configs[10]).Frame;
