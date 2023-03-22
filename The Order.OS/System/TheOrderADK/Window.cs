@@ -14,16 +14,7 @@ namespace IngameScript
     {
         #region Window
 
-
-        public class Form
-        {
-            public int AutoScaleMode;
-            public string Text;
-            public Vector2 ClientSize;
-        }
-
-
-        public class Window : Form
+        public class Window : IWindow
         {
             public MultiScreenSpriteSurface Screen;
             public Rectangle MyFrame, Base, BoundingBox;
@@ -53,14 +44,6 @@ namespace IngameScript
                 IOs = new List<IMyTerminalBlock> { _workstation.Controller, _workstation.Tool };
                 Start();
             }
-
-            private void InitializeComponent()
-            {
-                AutoScaleMode = (int)Configs[1];
-                ClientSize = new Vector2(800, 450);
-                Text = (string)Configs[4];
-            }
-
 
             public void Start() { ((Action<Window, byte>)Configs[2])(this, 0); }
             public void Run() { ((Action<Window, byte>)Configs[2])(this, 1); }

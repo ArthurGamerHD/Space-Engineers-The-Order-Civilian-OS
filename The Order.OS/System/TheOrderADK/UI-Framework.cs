@@ -23,6 +23,12 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
+        public interface IWindow 
+        {
+        
+        }
+
+
         public class Style
         {
             private static Color _fallbackHover = new Vector4(255, 255, 0, .5f);
@@ -49,6 +55,7 @@ namespace IngameScript
 
         public enum Interaction
         {
+            None,
             Hover,
             Clicked,
             Click,
@@ -60,7 +67,7 @@ namespace IngameScript
             Action Clicked { get; }
             Action Hover { get; }
             Action Click { get; }
-            Object Content { get; }
+            object Content { get; }
             Style Style { get; }
             float Scale { get; }
             Interaction Interaction { set; }
@@ -113,8 +120,8 @@ namespace IngameScript
 
             }
 
-            private Object _content { get; set; }
-            public Object Content
+            private object _content { get; set; }
+            public object Content
             {
                 get
                 {
@@ -187,7 +194,6 @@ namespace IngameScript
                     null,
                     TextAlignment.LEFT);
             }
-
 
             private void NewSprite()
             {

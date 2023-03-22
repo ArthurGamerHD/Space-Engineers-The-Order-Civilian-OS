@@ -5,10 +5,9 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        public class TimeAgo
+        static public class Converters
         {
-            public string Time;
-            public TimeAgo(DateTime Reference)
+            public static string TimeAgo(DateTime Reference)
             {
                 string R;
                 var T = DateTime.Now.Subtract(Reference);
@@ -46,7 +45,7 @@ namespace IngameScript
                         string.Format("{0} years", T.Days / 365) :
                        "a year";
                 }
-                Time = $"About {R} ago";
+                return $"About {R} ago";
             }
         }
     }

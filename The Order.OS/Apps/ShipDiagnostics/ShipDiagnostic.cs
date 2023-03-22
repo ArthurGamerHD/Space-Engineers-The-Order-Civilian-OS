@@ -27,10 +27,15 @@ namespace IngameScript
         class DiagInterface
         {
             List<IMyTerminalBlock> Blocks;
-            IMyCubeGrid Grid;
-            public DiagInterface(List<IMyTerminalBlock> _Blocks, IMyCubeGrid _Grid)
+            IMyCubeGrid _grid;
+            ILogger _logger;
+            FileHandler _file;
+            public DiagInterface(List<IMyTerminalBlock> _Blocks, IMyCubeGrid _Grid, FileHandler file, ILogger logger)
             {
-                Blocks = _Blocks; Grid = _Grid;
+                Blocks = _Blocks;
+                _grid = _Grid;
+                _logger = logger;
+                _file = file;
             }
 
             public List<string> BString = new List<string> { "00-HUL", "01-HPS", "02-BUK", "03-GRV", "04-LSS", "05-EPS", "06-BTP", "07-PDS", "08-ORS", "09-STT", "10-CDP", "11-STG", "12-H2S", "13-GYR", "14-HTS", "15-ITS", "16-ATS", "17-JPD", "18-WEP", "19-SSR", "20-COM", "21-ILT", "22-EXT", "TOGGLE", "OVRRD" };
@@ -38,8 +43,9 @@ namespace IngameScript
             int Page = 1, rotation = 0;
             List<bool> SubSystem;
             Window Window;
-            float zoom = 2f, rotationF = 0, Z;
+            float zoom = 1f, rotationF = 0, Z;
             Vector2I P;
+            MyIni Settings = new MyIni();
             TextAlignment Ta = TextAlignment.CENTER;
             Color R = Color.Red, G = Color.Green, W = Color.White, D = Color.DarkGray, C, T;
             public void Initialize(Window _Window, byte Action)
@@ -53,16 +59,27 @@ namespace IngameScript
                         Window.Base = new Rectangle((int)(Window.Screen.TextureSize.X / 2 - (192 * Window.Scale)), (int)(Window.Screen.TextureSize.Y / 2 - (128 * Window.Scale)), (int)(384 * Window.Scale), (int)(256 * Window.Scale));
                         Window.MyFrame = Window.Base;
                         Window.Configs[1] = 2;
-                        Window.Configs[4] = $"Ship diagnostic, Displaying: {Grid.CustomName}";
+                        Window.Configs[4] = $"Ship diagnostic, Displaying: {_grid.CustomName}";
                         Window.Configs[5] = "Ship diagnostic info Display Version 3.0.7                (c) The Order-All rights reserved";
+
+                        if (_file.Exist("DiagInterfaceSettings"))
+                            Settings.TryParse(_file.ReadAllText("DiagInterfaceSettings"));
 
                         C = MetaData.CanvasColor; T = MetaData.Theme;
                         if (Window.Configs[10] == null)
                         {
-                            Window.Configs[10] = new Diagnostic(Blocks, Grid);
-                            Window.Configs[14] = 0; //Angle
+
+                            zoom = IniPseudoSerializer.Deserialize<float>("Settings", "Zoom", Settings); //Zoom
+                            rotationF = IniPseudoSerializer.Deserialize<float>("Settings", "Rotation", Settings); //Rotation
+                            Window.Configs[14] = IniPseudoSerializer.Deserialize<int>("Settings", "Angle", Settings); //Angle
+
+
+                            Window.Configs[10] = new Diagnostic(Blocks, _grid);
                             Window.Configs[15] = new List<bool> { true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false };
                         }
+
+                        _logger.Log(LogTier.info, this, "Startup completed");
+
                         ((Diagnostic)Window.Configs[10]).Update(Window);
                         break;
                     case 1:
@@ -112,8 +129,8 @@ namespace IngameScript
                             var size = new Vector2(640f, 320f) * Z;
                             RectangleF DrawArea = new RectangleF(new Vector2(-40f, 10f) * Z + P - size / 2, size);
                             frame.Add(new MySprite(SpriteType.TEXTURE, "SquareSimple", DrawArea.Position + new Vector2(0, DrawArea.Size.Y / 2), DrawArea.Size, new Color(0, 0, 0, 255), null, TextAlignment.LEFT)); // InfoDisplayBlack
-                            frame.Add(new MySprite(SpriteType.TEXTURE, "Grid", DrawArea.Position + new Vector2(0, DrawArea.Size.Y / 2), new Vector2(DrawArea.Size.Y, DrawArea.Size.Y), W, null, TextAlignment.LEFT)); // InfoDisplayBlack
-                            frame.Add(new MySprite(SpriteType.TEXTURE, "Grid", DrawArea.Position + new Vector2(DrawArea.Size.Y, DrawArea.Size.Y / 2), new Vector2(DrawArea.Size.Y, DrawArea.Size.Y), W, null, TextAlignment.LEFT)); // InfoDisplayBlack
+                            frame.Add(new MySprite(SpriteType.TEXTURE, "_grid", DrawArea.Position + new Vector2(0, DrawArea.Size.Y / 2), new Vector2(DrawArea.Size.Y, DrawArea.Size.Y), W, null, TextAlignment.LEFT)); // InfoDisplayBlack
+                            frame.Add(new MySprite(SpriteType.TEXTURE, "_grid", DrawArea.Position + new Vector2(DrawArea.Size.Y, DrawArea.Size.Y / 2), new Vector2(DrawArea.Size.Y, DrawArea.Size.Y), W, null, TextAlignment.LEFT)); // InfoDisplayBlack
                             frame.Add(new MySprite(SpriteType.CLIP_RECT, "SquareSimple", DrawArea.Position, DrawArea.Size, null, null, TextAlignment.LEFT)); // InfoDisplayBack
                             foreach (MySprite S in ((Diagnostic)Window.Configs[10]).Get(Window))
                             {
@@ -128,7 +145,7 @@ namespace IngameScript
 
                             frame.Add(new MySprite(SpriteType.CLIP_RECT, "SquareSimple", (new Vector2(15f - 260f, -170f - 15f)) * Z + P, new Vector2(520f, 30f) * Z, null, null, TextAlignment.LEFT)); //NameCLIP_RECT
                             SS(15f, -170f, 530f, 30f, W, Z, P); // Name Frame
-                            frame.Add(new MySprite(SpriteType.TEXT, Grid.CustomName, new Vector2(-243f, -187f) * Z + P, null, T, "DEBUG", TextAlignment.LEFT, 1f * Z)); // ShipName
+                            frame.Add(new MySprite(SpriteType.TEXT, _grid.CustomName, new Vector2(-243f, -187f) * Z + P, null, T, "DEBUG", TextAlignment.LEFT, 1f * Z)); // ShipName
                             frame.Add(MySprite.CreateClearClipRect());
 
                             foreach (MySprite Sprite in Window.ToolBar()) { frame.Add(Sprite); }
@@ -149,7 +166,7 @@ namespace IngameScript
                     new MySprite(SpriteType.TEXTURE, "SquareSimple", new Vector2(ButtonPos.X, ButtonPos.Y + 12.5f * Z), new Vector2(50f, 25f) * Z, W, null, TextAlignment.LEFT),
                     new MySprite(SpriteType.TEXTURE, "RightTriangle", new Vector2(X - 20, Y - 7.5f) * Z + P, new Vector2(10f, 10f) * Z, D, null, Ta, 1.5708f)};
                 if (Text != null)
-                    Temp.Add(new MySprite(SpriteType.TEXT, Text, new Vector2(ButtonPos.X +(25 * Z), ButtonPos.Y + (10 * Z)), null, Color.Black, "Monospace", TextAlignment.CENTER, .4f * Z));
+                    Temp.Add(new MySprite(SpriteType.TEXT, Text, new Vector2(ButtonPos.X + (25 * Z), ButtonPos.Y + (10 * Z)), null, Color.Black, "Monospace", TextAlignment.CENTER, .4f * Z));
                 Window.Buttons.Add(new Button((int)ButtonPos.X, (int)ButtonPos.Y, (int)(50f * Z), (int)(25f * Z), ButtonAction, null, null, Temp));
             }
             public void SmallButton(float X, float Y, Action ButtonAction)
@@ -184,17 +201,26 @@ namespace IngameScript
                 int I = (int)Window.Configs[14];
                 I += 1; if (I > 5) I = 0;
                 Window.Configs[14] = I;
+                IniPseudoSerializer.Serialize("Settings", "Angle", ref I, ref Settings);
+                SaveSettings();
             }
             public void BV2()
             {
                 int I = (int)Window.Configs[14];
                 I -= 1; if (I < 0) I = 5;
                 Window.Configs[14] = I;
+                IniPseudoSerializer.Serialize("Settings", "Angle", ref I, ref Settings);
+                SaveSettings();
             }
-            public void BRP() { rotation += 15; if (rotation > 345) rotation = 0; }
-            public void BRS() { rotation -= 15; if (rotation < 0) rotation = 345; }
-            public void BZP() { zoom += .4f; if (zoom > 10f) zoom = 10f; }
-            public void BZS() { zoom -= .4f; if (zoom < .6f) zoom = .6f; }
+            public void BRP() { rotation += 15; if (rotation > 345) rotation = 0; IniPseudoSerializer.Serialize("Settings", "Rotation", ref rotationF, ref Settings); SaveSettings(); }
+            public void BRS() { rotation -= 15; if (rotation < 0) rotation = 345; IniPseudoSerializer.Serialize("Settings", "Rotation", ref rotationF, ref Settings); SaveSettings(); }
+            public void BZP() { zoom += .4f; if (zoom > 10f) zoom = 10f; IniPseudoSerializer.Serialize("Settings", "Zoom", ref zoom, ref Settings); SaveSettings(); }
+            public void BZS() { zoom -= .4f; if (zoom < .6f) zoom = .6f; IniPseudoSerializer.Serialize("Settings", "Zoom", ref zoom, ref Settings); SaveSettings(); }
+
+            public void SaveSettings()
+            {
+                _file.WriteAllText("DiagInterfaceSettings", Settings.ToString());
+            }
         }
 
         public class SpriteListData
@@ -216,9 +242,9 @@ namespace IngameScript
             int? Current;
             IEnumerator<bool> Task;
             IEnumerator<bool> Clear;
-            public Diagnostic(List<IMyTerminalBlock> _Blocks, IMyCubeGrid Grid)
+            public Diagnostic(List<IMyTerminalBlock> _Blocks, IMyCubeGrid _grid)
             {
-                MyShipDiagnostic = new ShipDiagnostic(Grid);
+                MyShipDiagnostic = new ShipDiagnostic(_grid);
                 Blocks = _Blocks;
                 LoL = new List<List<SpriteListData>>(new List<SpriteListData>[23]);
                 for (int i = 0; i < LoL.Count(); ++i)
@@ -243,7 +269,7 @@ namespace IngameScript
                                 if (LoL[i][I] != null && ((List<bool>)Window.Configs[15])[i]) foreach (MySprite Sprite in LoL[i][I].Sprites) SpriteList.Add(Sprite);
                             }
                             foreach (MySprite Sprite in MyShipDiagnostic.Sensor(I, Sensors)) SpriteList.Add(Sprite);
-                            SpriteList.Add(new MySprite(SpriteType.TEXT, $"Last Update: {new TimeAgo(LoL[0][I].Time).Time}", new Vector2(0, 140f), null, Color.White, "Monospace", TextAlignment.CENTER, .4f));
+                            SpriteList.Add(new MySprite(SpriteType.TEXT, $"Last Update: {Converters.TimeAgo(LoL[0][I].Time)}", new Vector2(0, 140f), null, Color.White, "Monospace", TextAlignment.CENTER, .4f));
                         }
                         else
                         {
@@ -299,7 +325,7 @@ namespace IngameScript
         public class ShipDiagnostic
         {
             List<IMyTerminalBlock> Blocks = new List<IMyTerminalBlock> { };
-            public IMyCubeGrid Grid { get; set; }
+            public IMyCubeGrid _grid { get; set; }
             public BlockState[,,] Saved_Grid { get; set; }
             public Vector3I Grid_Min { get; set; }
             public Vector3I Grid_Max { get; set; }
@@ -315,7 +341,7 @@ namespace IngameScript
             public IEnumerator<bool> DiagTask { get; set; }
             public ShipDiagnostic(IMyCubeGrid _Grid)
             {
-                Grid = _Grid;
+                _grid = _Grid;
                 TerminalBlocks = new List<TerminalBlockState>();
                 TypeDictonary = new Dictionary<Type, int>
                 {
@@ -373,7 +399,7 @@ namespace IngameScript
                     yield return val;
                 TerminalBlocks.Clear();
                 for (int i = 0; i < Blocks.Count; ++i)
-                    if (Blocks[i].IsFunctional && Blocks[i].CubeGrid == Grid)
+                    if (Blocks[i].IsFunctional && Blocks[i].CubeGrid == _grid)
                         TerminalBlocks.Add(new TerminalBlockState { Position = Blocks[i].Min, Size = Blocks[i].Max - Blocks[i].Min + Vector3I.One, State = BlockState.Normal, Block = Blocks[i] });
                 yield break;
             }
@@ -382,8 +408,8 @@ namespace IngameScript
             {
                 if (check_damaged == false)
                 {
-                    Grid_Min = Grid.Min - Vector3I.One;
-                    Grid_Max = Grid.Max + Vector3I.One;
+                    Grid_Min = _grid.Min - Vector3I.One;
+                    Grid_Max = _grid.Max + Vector3I.One;
                     Saved_Grid = new BlockState[Grid_Max.X - Grid_Min.X, Grid_Max.Y - Grid_Min.Y, Grid_Max.Z - Grid_Min.Z];
                     tilesize = Math.Max(Grid_Max.X - Grid_Min.X, Math.Max(Grid_Max.Y - Grid_Min.Y, Grid_Max.Z - Grid_Min.Z)) + 1;
                     Tiles = new TileState[tilesize, tilesize];
@@ -401,14 +427,14 @@ namespace IngameScript
                                 if (Saved_Grid[_X - Grid_Min.X, y - Grid_Min.Y, z - Grid_Min.Z] != BlockState.Empty)
                                 {
                                     ++total;
-                                    if (!Grid.CubeExists(pos))
+                                    if (!_grid.CubeExists(pos))
                                         Saved_Grid[_X - Grid_Min.X, y - Grid_Min.Y, z - Grid_Min.Z] = BlockState.Missing;
                                     else
                                         ++total_healthy;
                                 }
                             }
                             else
-                                Saved_Grid[_X - Grid_Min.X, y - Grid_Min.Y, z - Grid_Min.Z] = Grid.CubeExists(pos) ? BlockState.Normal : BlockState.Empty;
+                                Saved_Grid[_X - Grid_Min.X, y - Grid_Min.Y, z - Grid_Min.Z] = _grid.CubeExists(pos) ? BlockState.Normal : BlockState.Empty;
                         }
                     }
                     yield return true;
@@ -557,7 +583,7 @@ namespace IngameScript
                 int Count = 0;
                 for (int i = 0; i < TerminalBlocks.Count; ++i)
                 {
-                    bool exists = Grid.CubeExists(TerminalBlocks[i].Position);
+                    bool exists = _grid.CubeExists(TerminalBlocks[i].Position);
                     bool working = TerminalBlocks[i].Block.IsWorking;
                     if (exists)
                         ++terminal_healthy;
@@ -606,7 +632,7 @@ namespace IngameScript
                         if (Sensor is IMyLargeTurretBase)
                             Detected.Add(((IMyLargeTurretBase)Sensor).GetTargetedEntity());
                     }
-                    List<long> IDs = new List<long> { Grid.EntityId };
+                    List<long> IDs = new List<long> { _grid.EntityId };
                     foreach (MyDetectedEntityInfo entity in Detected)
                     {
                         if (!IDs.Contains(entity.EntityId))
@@ -620,7 +646,7 @@ namespace IngameScript
                     };
                     foreach (MyDetectedEntityInfo entity in entities)
                     {
-                        var EntityPos = Grid.WorldToGridInteger(entity.Position);
+                        var EntityPos = _grid.WorldToGridInteger(entity.Position);
                         Vector3I pos = new Vector3I(EntityPos.X, EntityPos.Y, EntityPos.Z);
                         Vector3I Entity = Rotate(pos - Grid_Min, _Scale);
 

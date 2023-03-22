@@ -10,6 +10,7 @@
 	  </MDKTrimTypes>
 	  <MDKMinify>
 		  <!--Level>none</Level-->
+		  <!--Level>Full</Level-->
 		  <Level>Full</Level>
 	  </MDKMinify>
 	  <MDKIgnore>

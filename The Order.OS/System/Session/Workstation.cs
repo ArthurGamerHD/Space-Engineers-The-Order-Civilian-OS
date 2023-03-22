@@ -21,9 +21,10 @@ namespace IngameScript
             public float Scale = 2;
             public string Wallpaper = "";
             public int CursorStatus, S32;
-            public double Standby;
+            public double Standby = DateTime.Now.Ticks;
             bool ECursor, ETaskBar, EBackground;
             public List<Window> Windows;
+            public List<IApplication> Applications;
             Vector2I offset, CenterPos;
             public RectangleF ViewPort { get; private set; }
             readonly MetaData MetaData = new MetaData();
@@ -51,7 +52,7 @@ namespace IngameScript
                 foreach (Window Window in Windows)
                     Window.Run();
                 clock++;
-                if (clock == 10)
+                if (MetaData.VERYDANGEROUS60FPS || clock == 10)
                 {
                     if (Standby + 3600000000 > DateTime.Now.Ticks)
                     {
@@ -86,7 +87,7 @@ namespace IngameScript
                         Y += Yp;
                         Yp = (Y + S70 > ViewPort.Height) ? -S5 : (Y - S70 < ViewPort.Y) ? S5 : Yp;
                         var centerPos = new Vector2(X, Y);
-                        Screen.Add(new MySprite(SpriteType.TEXTURE, MetaData.FactionIcon, new Vector2(0f, -34f) * Scale + centerPos, new Vector2(100, 100), MyColor, "DEBUG", TextAlignment.CENTER, 2f * Scale));
+                        Screen.Add(new MySprite(SpriteType.TEXTURE, MetaData.FactionIcon, new Vector2(0f, -34f) * Scale + centerPos, new Vector2(100, 100), MyColor, "DEBUG", TextAlignment.CENTER));
                         Screen.Add(new MySprite(SpriteType.TEXT, "The Order OS", new Vector2(0f, 09f) * Scale + centerPos, null, MyColor, "DEBUG", TextAlignment.CENTER, 0.8f * Scale));
 
                     }
@@ -170,6 +171,7 @@ namespace IngameScript
 
             public void TaskKill(Window window)
             {
+                Applications.Remove(Applications.Find(A => A.MainWindow == window));
                 Windows.Remove(window);
             }
             public void RefreshDisplay()
